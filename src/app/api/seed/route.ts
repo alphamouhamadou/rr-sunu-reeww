@@ -62,6 +62,7 @@ export async function GET() {
         status: 'approved',
         membershipNumber: 'RR-000001',
         membershipDate: new Date('2026-01-01'),
+        emailVerified: true,
       }
     })
 
