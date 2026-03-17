@@ -88,6 +88,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ member: memberWithoutPassword })
   } catch (error) {
     console.error('Auth error:', error)
-    return NextResponse.json({ error: 'Erreur de connexion: ' + (error?.message || 'Unknown error') }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur de connexion: ' + (error instanceof Error ? error.message : 'Unknown error') }, { status: 500 })
   }
 }
