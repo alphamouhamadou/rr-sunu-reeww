@@ -1,33 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-// Email verification endpoint
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const token = searchParams.get('token')
 
     if (!token) {
-      return NextResponse.redirect(new URL('/?verification=error&message=Token manquant', request.url))
+      return NextResponse.redirect(new URL('/verification-echec?reason=no_token', request.url))
     }
 
-    // Find member with this token
+    // Chercher le membre avec ce token
     const member = await db.member.findFirst({
       where: {
         verificationToken: token,
       }
     })
 
+    // Si aucun membre trouvé avec ce token
     if (!member) {
-      return NextResponse.redirect(new URL('/?verification=error&message=Token invalide', request.url))
+      return NextResponse.redirect(new URL('/verification-echec?reason=invalid', request.url))
     }
 
-    // Check if token is expired
+    // Vérifier si le token n'a pas expiré
     if (member.verificationTokenExpiry && member.verificationTokenExpiry < new Date()) {
-      return NextResponse.redirect(new URL('/?verification=error&message=Token expiré', request.url))
+      return NextResponse.redirect(new URL('/verification-echec?reason=expired', request.url))
     }
 
-    // Update member: mark email as verified and clear token
+    // Vérifier si déjà vérifié
+    if (member.emailVerified) {
+      return NextResponse.redirect(new URL('/verification-succes?already=true', request.url))
+    }
+
+    // Mettre à jour le membre comme vérifié
     await db.member.update({
       where: { id: member.id },
       data: {
@@ -37,10 +42,11 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Redirect to success page
-    return NextResponse.redirect(new URL('/?verification=success', request.url))
+    console.log('✅ Email vérifié pour:', member.email)
+
+    return NextResponse.redirect(new URL('/verification-succes', request.url))
   } catch (error) {
-    console.error('Verification error:', error)
-    return NextResponse.redirect(new URL('/?verification=error&message=Erreur serveur', request.url))
+    console.error('❌ Erreur de vérification:', error)
+    return NextResponse.redirect(new URL('/verification-echec?reason=error', request.url))
   }
 }
