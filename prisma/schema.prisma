@@ -1,0 +1,324 @@
+// Prisma schema for Renaissance Républicaine Sunu Reew
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Geographic divisions
+model Region {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  departments Department[]
+  members     Member[]
+  createdAt   DateTime @default(now())
+}
+
+model Department {
+  id       String   @id @default(cuid())
+  name     String
+  regionId String
+  region   Region   @relation(fields: [regionId], references: [id])
+  communes Commune[]
+  members  Member[]
+  createdAt DateTime @default(now())
+}
+
+model Commune {
+  id           String   @id @default(cuid())
+  name         String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  members      Member[]
+  createdAt    DateTime @default(now())
+}
+
+// Member system
+model Member {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  password           String   // Hashé avec bcrypt
+  
+  // Email verification
+  emailVerified      Boolean  @default(false)
+  verificationToken  String?  @unique
+  verificationTokenExpiry DateTime?
+  
+  // Password reset
+  resetToken         String?  @unique
+  resetTokenExpiry   DateTime?
+  
+  firstName          String
+  lastName           String
+  dateOfBirth        String
+  placeOfBirth       String
+  address            String
+  phone              String
+  
+  // Photo de profil (base64 ou URL)
+  photo              String?
+  
+  // Type de résidence : senegal ou diaspora
+  residenceType      String   @default("senegal") // senegal, diaspora
+  
+  // Pour les résidents au Sénégal
+  regionId           String?
+  departmentId       String?
+  communeId          String?
+  region             Region?     @relation(fields: [regionId], references: [id])
+  department         Department? @relation(fields: [departmentId], references: [id])
+  commune            Commune?    @relation(fields: [communeId], references: [id])
+  
+  // Pour la diaspora
+  country            String?   // Pays de résidence pour la diaspora
+  cityAbroad         String?   // Ville à l'étranger
+  
+  // Carte d'identité - OBLIGATOIRE
+  cniNumber          String
+  
+  // Carte d'électeur
+  hasVoterCard       Boolean  @default(false)
+  voterCardNumber    String?
+  
+  role               String   @default("member") // member, admin
+  status             String   @default("pending") // pending, approved, rejected
+  membershipNumber   String?  @unique
+  membershipDate     DateTime?
+  
+  // Paiement de la carte de membre
+  hasPaidCard        Boolean  @default(false)
+  cardPaidAt         DateTime?
+  
+  donations          Donation[]
+  contributions      Contribution[]
+  receivedMessages   Message[]   @relation("ReceivedMessages")
+  sentMessages       Message[]   @relation("SentMessages")
+  notifications      Notification[]
+  activityLogs       ActivityLog[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+// News and articles
+model Article {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String
+  excerpt     String?
+  imageUrl    String?
+  category    String   @default("actualite") // actualite, communique, evenement
+  isPublished Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  authorId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Donations
+model Donation {
+  id           String   @id @default(cuid())
+  memberId     String?
+  member       Member?  @relation(fields: [memberId], references: [id])
+  amount       Float
+  donorName    String
+  donorEmail   String
+  donorPhone   String
+  paymentMethod String  // wave, orange_money
+  paymentRef   String?
+  status       String   @default("pending") // pending, completed, failed
+  message      String?
+  createdAt    DateTime @default(now())
+}
+
+// Monthly contributions
+model Contribution {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id])
+  amount    Float
+  month     String   // Format: YYYY-MM
+  paymentMethod String
+  paymentRef    String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+}
+
+// Internal messaging
+model Message {
+  id          String   @id @default(cuid())
+  senderId    String
+  sender      Member   @relation("SentMessages", fields: [senderId], references: [id])
+  recipientId String
+  recipient   Member   @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  subject     String
+  content     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+// Notifications
+model Notification {
+  id          String   @id @default(cuid())
+  memberId    String
+  member      Member   @relation(fields: [memberId], references: [id])
+  title       String
+  message     String
+  type        String   @default("info") // info, alert, payment
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+// Site settings
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Events
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  endDate     DateTime?
+  location    String
+  regionId    String?
+  imageUrl    String?
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Live Streaming
+model LiveStream {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  platform      String   // youtube, facebook, custom
+  streamUrl     String   // URL du stream (YouTube, Facebook, ou URL personnalisée)
+  streamId      String?  // ID de la vidéo YouTube ou Facebook
+  thumbnailUrl  String?  // Image de couverture
+  isLive        Boolean  @default(false)
+  isScheduled   Boolean  @default(false)
+  scheduledAt   DateTime? // Date/heure prévue du live
+  startedAt     DateTime? // Date/heure de début effectif
+  endedAt       DateTime? // Date/heure de fin
+  viewerCount   Int      @default(0)
+  regionId      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Newsletter subscriptions
+model Newsletter {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  isActive  Boolean  @default(true)
+  source    String   @default("website") // website, event, other
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Email Templates
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  subject     String
+  htmlContent String
+  textContent String?
+  variables   String?  // JSON array of available variables
+  category    String   @default("general") // general, notification, marketing
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Email Campaigns (Newsletters)
+model EmailCampaign {
+  id           String   @id @default(cuid())
+  name         String
+  subject      String
+  htmlContent  String
+  textContent  String?
+  targetGroup  String   @default("all") // all, members, newsletter, region:dakar, etc.
+  status       String   @default("draft") // draft, sending, sent, failed
+  sentAt       DateTime?
+  recipientCount Int    @default(0)
+  openedCount  Int      @default(0)
+  clickedCount Int      @default(0)
+  emailLogs    EmailLog[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Email Logs
+model EmailLog {
+  id           String   @id @default(cuid())
+  campaignId   String?
+  campaign     EmailCampaign? @relation(fields: [campaignId], references: [id])
+  recipientEmail String
+  recipientName  String?
+  subject      String
+  status       String   @default("pending") // pending, sent, delivered, opened, clicked, failed
+  errorMessage String?
+  sentAt       DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  createdAt    DateTime @default(now())
+}
+
+// Activity Logs for tracking admin actions
+model ActivityLog {
+  id          String   @id @default(cuid())
+  action      String   // create, update, delete, approve, reject, etc.
+  entityType  String   // member, article, event, donation, contribution, etc.
+  entityId    String?
+  memberId    String?  // Who performed the action
+  member      Member?  @relation(fields: [memberId], references: [id])
+  details     String?  // JSON string with additional details
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+
+// Photo Gallery
+model GalleryPhoto {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  imageUrl    String
+  thumbnailUrl String?
+  category    String   @default("general") // general, event, meeting, campaign
+  eventId     String?  // Link to event if applicable
+  isFeatured  Boolean  @default(false)
+  isPublished Boolean  @default(true)
+  displayOrder Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Platform Configuration (PayTech)
+model PlatformConfig {
+  id                  String   @id @default(cuid())
+
+  // Configuration PayTech
+  paytechApiKey       String?
+  paytechSecretKey    String?
+  paytechMode         String   @default("test") // test, live
+
+  // Paramètres des cotisations
+  contributionAmount  Float    @default(1000)
+  gracePeriodDays     Int      @default(7)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
