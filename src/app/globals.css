@@ -1,0 +1,602 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  
+  /* Party colors - Senegal flag */
+  --color-party-green: #008751;
+  --color-party-yellow: #FFD100;
+  --color-party-red: #CE1126;
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #008751;
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: #CE1126;
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: #008751;
+  --chart-1: #008751;
+  --chart-2: #FFD100;
+  --chart-3: #CE1126;
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: #008751;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: #008751;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.18 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.18 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: #008751;
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.22 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.22 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: #CE1126;
+  --border: oklch(0.3 0 0);
+  --input: oklch(0.25 0 0);
+  --ring: #008751;
+  --chart-1: #008751;
+  --chart-2: #FFD100;
+  --chart-3: #CE1126;
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.18 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #008751;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.22 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.3 0 0);
+  --sidebar-ring: #008751;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: oklch(0.7 0 0);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0 0);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: oklch(0.4 0 0);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0 0);
+}
+
+/* Party gradient */
+.party-gradient {
+  background: linear-gradient(135deg, #008751 0%, #006b40 100%);
+}
+
+.party-gradient-full {
+  background: linear-gradient(90deg, #008751 0%, #FFD100 50%, #CE1126 100%);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* QR Code styling */
+.qr-container {
+  background: white;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+/* Dark mode card adjustments */
+.dark .party-gradient {
+  background: linear-gradient(135deg, #006b40 0%, #005530 100%);
+}
+
+/* Toast styles for dark mode */
+.dark [data-sonner-toast] {
+  background: oklch(0.18 0 0) !important;
+  border-color: oklch(0.3 0 0) !important;
+}
+
+/* ============================================
+   MOBILE-FIRST IMPROVEMENTS
+   ============================================ */
+
+/* Safe area insets for notched phones */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-inset-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.safe-area-inset-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Full safe area container */
+.safe-area-container {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Touch-optimized interactions */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+.touch-pan-y {
+  touch-action: pan-y;
+}
+
+.touch-pan-x {
+  touch-action: pan-x;
+}
+
+.touch-none {
+  touch-action: none;
+}
+
+/* Minimum touch target size (44x44px recommended by Apple) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Active/haptic feedback styles */
+.active-scale {
+  transition: transform 0.1s ease-out;
+}
+
+.active-scale:active {
+  transform: scale(0.96);
+}
+
+.active-brightness {
+  transition: filter 0.1s ease-out;
+}
+
+.active-brightness:active {
+  filter: brightness(0.95);
+}
+
+/* Mobile-optimized tap highlight */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: rgba(0, 135, 81, 0.1);
+  }
+}
+
+/* CSS Containment for performance */
+.contain-layout {
+  contain: layout;
+}
+
+.contain-paint {
+  contain: paint;
+}
+
+.contain-strict {
+  contain: strict;
+}
+
+.contain-content {
+  contain: content;
+}
+
+/* Mobile-optimized scrolling */
+.scroll-smooth-mobile {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+.overscroll-none {
+  overscroll-behavior: none;
+}
+
+/* Hide scrollbar on mobile for cleaner look */
+@media (max-width: 768px) {
+  .hide-scrollbar-mobile {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar-mobile::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Mobile typography improvements */
+@media (max-width: 640px) {
+  .mobile-text-base {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+  
+  .mobile-input {
+    font-size: 16px !important; /* Prevents iOS auto-zoom */
+  }
+}
+
+/* Improved focus styles for touch */
+.focus-touch:focus-visible {
+  outline: 2px solid #008751;
+  outline-offset: 2px;
+}
+
+/* Mobile-friendly skeleton loading animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.95 0 0) 25%,
+    oklch(0.9 0 0) 50%,
+    oklch(0.95 0 0) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.22 0 0) 25%,
+    oklch(0.28 0 0) 50%,
+    oklch(0.22 0 0) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* Slide-in animations for mobile menu */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-down {
+  animation: slideInDown 0.3s ease-out;
+}
+
+/* Scale animation for touch feedback */
+@keyframes touchScale {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+}
+
+.animate-touch-scale {
+  animation: touchScale 0.15s ease-out;
+}
+
+/* Bottom sheet styles */
+.bottom-sheet {
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Mobile card styles */
+.mobile-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.dark .mobile-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Improved readability on mobile */
+@media (max-width: 768px) {
+  .mobile-readable {
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+  }
+}
+
+/* Mobile input improvements */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+textarea,
+select {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="search"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Mobile-optimized button */
+.mobile-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.15s ease-out;
+}
+
+.mobile-btn:active {
+  transform: scale(0.98);
+}
+
+/* Sticky mobile header */
+.sticky-mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Mobile bottom padding for fixed nav */
+.mobile-bottom-padding {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Improved contrast for mobile in sunlight */
+@media (hover: none) and (pointer: coarse) {
+  .sunlight-readable {
+    color: #000;
+  }
+  
+  .dark .sunlight-readable {
+    color: #fff;
+  }
+}
+
+/* Lazy loading image placeholder */
+.lazy-image-placeholder {
+  background: linear-gradient(
+    135deg,
+    oklch(0.95 0 0) 0%,
+    oklch(0.9 0 0) 50%,
+    oklch(0.95 0 0) 100%
+  );
+}
+
+.dark .lazy-image-placeholder {
+  background: linear-gradient(
+    135deg,
+    oklch(0.22 0 0) 0%,
+    oklch(0.18 0 0) 50%,
+    oklch(0.22 0 0) 100%
+  );
+}
+
+/* Horizontal scroll container for mobile */
+.horizontal-scroll {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  gap: 16px;
+  padding: 0 16px;
+}
+
+.horizontal-scroll > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* Mobile-friendly tabs */
+.mobile-tabs {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Glassmorphism effect for mobile */
+.glass-mobile {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.dark .glass-mobile {
+  background: rgba(0, 0, 0, 0.7);
+}
