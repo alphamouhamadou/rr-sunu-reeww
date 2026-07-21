@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
-import { CheckCircle, User, MapPin, Phone, Mail, FileText, ArrowLeft, Loader2, Globe, Camera, Upload, ChevronRight, ChevronLeft } from 'lucide-react'
+import { CheckCircle, User, MapPin, Phone, Mail, FileText, ArrowLeft, Loader2, Globe, Camera, Upload, ChevronRight, ChevronLeft, CreditCard, Download, Smartphone, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Region {
@@ -104,6 +104,28 @@ const formatPhoneNumber = (value: string): string => {
   return formatted
 }
 
+interface MemberCardInfo {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  photo: string | null
+  membershipNumber: string | null
+  membershipDate: string | null
+  status: string
+  hasPaidCard: boolean
+  cardPaidAt: string | null
+  dateOfBirth: string
+  placeOfBirth: string
+  residenceType: string
+  country: string | null
+  cityAbroad: string | null
+  region?: { name: string } | null
+  department?: { name: string } | null
+  commune?: { name: string } | null
+}
+
 export function JoinForm() {
   const { setCurrentSection } = useAppStore()
   const [step, setStep] = useState(1)
@@ -111,6 +133,13 @@ export function JoinForm() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [regions, setRegions] = useState<Region[]>([])
+  // Card payment state
+  const [registeredMemberId, setRegisteredMemberId] = useState('')
+  const [cardPaymentUrl, setCardPaymentUrl] = useState('')
+  const [cardPaymentLoading, setCardPaymentLoading] = useState(false)
+  const [cardPaid, setCardPaid] = useState(false)
+  const [cardInfo, setCardInfo] = useState<MemberCardInfo | null>(null)
+  const [cardCheckInterval, setCardCheckInterval] = useState<NodeJS.Timeout | null>(null)
 
 
   const [formData, setFormData] = useState({
@@ -343,6 +372,7 @@ export function JoinForm() {
       }
 
       setSuccess(true)
+      setRegisteredMemberId(data.memberId || '')
     } catch (err) {
       setError('Erreur de connexion au serveur')
       console.error(err)
@@ -351,7 +381,209 @@ export function JoinForm() {
     }
   }
 
+  // Handle card payment initiation
+  const handleCardPayment = async () => {
+    if (!registeredMemberId) return
+    setCardPaymentLoading(true)
+    try {
+      const res = await fetch('/api/paytech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: 1000,
+          type: 'card_fee',
+          itemName: `Carte Membre - ${formData.firstName} ${formData.lastName}`,
+          customerEmail: formData.email,
+          customerPhone: formData.phone,
+          memberId: registeredMemberId,
+        })
+      })
+      const data = await res.json()
+      if (data.redirectUrl || data.redirect_url) {
+        const url = data.redirectUrl || data.redirect_url
+        setCardPaymentUrl(url)
+        // Mark as paid immediately in test mode
+        if (data.testMode) {
+ await fetch('/api/card', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ memberId: registeredMemberId, paymentRef: data.refCommand })
+          })
+          setCardPaid(true)
+          // Fetch card info
+          const cardRes = await fetch(`/api/card?memberId=${registeredMemberId}`)
+          const cardData = await cardRes.json()
+          if (cardData.member) setCardInfo(cardData.member)
+        }
+      } else {
+        setError(data.error || 'Erreur lors de l\'initialisation du paiement')
+      }
+    } catch {
+      setError('Erreur de connexion au serveur')
+    } finally {
+      setCardPaymentLoading(false)
+    }
+  }
+
+  // Check payment status when user returns from payment
+  const handleCheckPayment = async () => {
+    if (!registeredMemberId) return
+    try {
+      const res = await fetch(`/api/card?memberId=${registeredMemberId}`)
+      const data = await res.json()
+      if (data.member?.hasPaidCard) {
+        setCardPaid(true)
+        setCardInfo(data.member)
+        if (cardCheckInterval) {
+          clearInterval(cardCheckInterval)
+          setCardCheckInterval(null)
+        }
+      }
+    } catch {
+      // silent
+    }
+  }
+
+  // Start polling when payment URL is shown
+  useEffect(() => {
+    if (cardPaymentUrl && !cardPaid) {
+      const interval = setInterval(handleCheckPayment, 5000)
+      setCardCheckInterval(interval)
+      return () => clearInterval(interval)
+    }
+    if (cardCheckInterval && cardPaid) {
+      clearInterval(cardCheckInterval)
+      setCardCheckInterval(null)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardPaymentUrl, cardPaid])
+
+  // Generate membership card PDF
+  const generateCardPDF = async () => {
+    if (!cardInfo) return
+    const jsPDF = (await import('jspdf')).default
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [85.6, 53.98] }) // CR80 card size
+    
+    // Background gradient simulation
+    pdf.setFillColor(0, 135, 81)
+    pdf.rect(0, 0, 85.6, 53.98, 'F')
+    
+    // Gold accent bar
+    pdf.setFillColor(255, 209, 0)
+    pdf.rect(0, 0, 85.6, 4, 'F')
+    pdf.rect(0, 49.98, 85.6, 4, 'F')
+    
+    // Party name
+    pdf.setTextColor(255, 255, 255)
+    pdf.setFontSize(6)
+    pdf.text('RENAISSANCE REPUBLICAINE', 42.8, 8, { align: 'center' })
+    pdf.setFontSize(7)
+    pdf.text('SUNU REEW', 42.8, 12, { align: 'center' })
+    
+    // Member info
+    pdf.setFontSize(9)
+    pdf.text(`${cardInfo.firstName} ${cardInfo.lastName}`, 5, 22)
+    pdf.setFontSize(5.5)
+    pdf.text(`N° Membre: ${cardInfo.membershipNumber || 'En attente'}`, 5, 27)
+    pdf.text(`Tel: ${cardInfo.phone}`, 5, 31.5)
+    const location = cardInfo.department?.name || cardInfo.cityAbroad || ''
+    const subLocation = cardInfo.commune?.name || cardInfo.country || ''
+    pdf.text(location, 5, 36)
+    pdf.text(subLocation, 5, 40)
+    pdf.text(cardInfo.membershipDate ? `Adhesion: ${new Date(cardInfo.membershipDate).toLocaleDateString('fr-FR')}` : 'En attente de validation', 5, 44)
+    
+    pdf.save(`carte-membre-${cardInfo.membershipNumber || 'RR'}.pdf`)
+  }
+
   if (success) {
+    // Payment redirect screen
+    if (cardPaymentUrl && !cardPaid) {
+      return (
+        <div className="container mx-auto px-4 py-8 md:py-16 animate-fade-in mobile-bottom-padding">
+          <Card className="max-w-lg mx-auto">
+            <CardContent className="pt-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-[#008751]/10 flex items-center justify-center mx-auto mb-6">
+                <CreditCard className="w-8 h-8 text-[#008751]" />
+              </div>
+              <h2 className="text-xl font-bold text-[#008751] mb-4">Paiement de votre carte</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
+                Cliquez sur le bouton ci-dessous pour payer les frais de carte (1 000 FCFA) via PayTech.
+              </p>
+              <div className="bg-[#FFD100]/10 rounded-lg p-4 mb-6">
+                <p className="text-lg font-semibold text-[#008751]">1 000 FCFA</p>
+                <p className="text-xs text-gray-500 mt-1">Frais de carte membre</p>
+              </div>
+              <div className="space-y-3">
+                <Button 
+                  className="w-full bg-[#008751] hover:bg-[#006b40] min-h-[48px]"
+                  onClick={() => window.open(cardPaymentUrl, '_blank')}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Payer maintenant (Wave / Orange Money)
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="w-full min-h-[48px]"
+                  onClick={handleCheckPayment}
+                >
+                  J'ai effectue le paiement
+                </Button>
+              </div>
+              <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs text-gray-500">
+                <div className="flex items-center gap-1">
+                  <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center"><Smartphone className="w-3 h-3 text-white" /></div>
+                  Wave
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center"><Smartphone className="w-3 h-3 text-white" /></div>
+                  Orange Money
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+    
+    // Card paid - download screen
+    if (cardPaid && cardInfo) {
+      return (
+        <div className="container mx-auto px-4 py-8 md:py-16 animate-fade-in mobile-bottom-padding">
+          <Card className="max-w-lg mx-auto">
+            <CardContent className="pt-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-[#008751]/10 flex items-center justify-center mx-auto mb-6">
+                <CheckCircle className="w-8 h-8 text-[#008751]" />
+              </div>
+              <h2 className="text-xl md:text-2xl font-bold text-[#008751] mb-2">Paiement effectue !</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-2 text-sm">
+                Votre carte membre est prete.
+              </p>
+              <p className="text-gray-500 mb-6 text-xs">
+                N° Membre : <span className="font-semibold">{cardInfo.membershipNumber || 'En attente de validation'}</span>
+              </p>
+              <div className="space-y-3">
+                <Button 
+                  className="w-full bg-[#008751] hover:bg-[#006b40] min-h-[48px]"
+                  onClick={generateCardPDF}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Telecharger ma carte
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="w-full min-h-[48px]"
+                  onClick={() => setCurrentSection('home')}
+                >
+                  Retour a l'accueil
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+    
+    // Default success - offer card payment
     return (
       <div className="container mx-auto px-4 py-8 md:py-16 animate-fade-in mobile-bottom-padding">
         <Card className="max-w-lg mx-auto">
@@ -359,16 +591,42 @@ export function JoinForm() {
             <div className="w-16 h-16 rounded-full bg-[#008751]/10 flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-8 h-8 text-[#008751]" />
             </div>
-            <h2 className="text-xl md:text-2xl font-bold text-[#008751] mb-4">Inscription réussie !</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-[#008751] mb-4">Inscription reussie !</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm md:text-base">
-              Votre demande d'adhésion a été enregistrée avec succès. 
-              Notre équipe va examiner votre dossier et vous contacter sous 48h.
+              Votre demande d'adhesion a ete enregistree avec succes.
+              Notre equipe va examiner votre dossier sous 48h.
             </p>
+            
+            {/* Card payment section */}
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 mb-6 text-left">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-[#008751]/10 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-[#008751]" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Obtenez votre carte membre</p>
+                  <p className="text-xs text-gray-500">Payez 1 000 FCFA pour recevoir votre carte</p>
+                </div>
+              </div>
+              <Button 
+                className="w-full bg-[#FFD100] text-black hover:bg-[#e6bc00] min-h-[48px] font-semibold"
+                onClick={handleCardPayment}
+                disabled={cardPaymentLoading}
+              >
+                {cardPaymentLoading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Traitement...</>
+                ) : (
+                  <>Payer 1 000 FCFA - Ma carte</>
+                )}
+              </Button>
+            </div>
+            
             <Button 
-              className="bg-[#008751] hover:bg-[#006b40] min-h-[48px] w-full md:w-auto"
+              variant="outline"
+              className="w-full min-h-[48px]"
               onClick={() => setCurrentSection('home')}
             >
-              Retour à l'accueil
+              Retour a l'accueil
             </Button>
           </CardContent>
         </Card>

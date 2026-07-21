@@ -116,6 +116,12 @@ export default function Home() {
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500 text-sm">
             <p>© 2026 Renaissance Républicaine Sunu Reew. Tous droits réservés.</p>
+            <button 
+              onClick={() => useAppStore.getState().setCurrentSection('admin')}
+              className="mt-3 inline-block text-xs text-gray-600 hover:text-[#FFD100] transition"
+            >
+              Administration
+            </button>
           </div>
         </div>
       </footer>

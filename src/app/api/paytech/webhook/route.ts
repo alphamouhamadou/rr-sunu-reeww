@@ -81,6 +81,18 @@ export async function POST(request: NextRequest) {
       
     } else if (paymentType === 'card_fee' && memberId) {
       console.log('✅ Frais de carte payé pour:', memberId)
+      try {
+        await db.member.update({
+          where: { id: memberId },
+          data: {
+            hasPaidCard: true,
+            cardPaidAt: new Date(),
+          }
+        })
+        console.log('✅ Carte membre activée pour:', memberId)
+      } catch (e) {
+        console.log('⚠️ Erreur activation carte:', e)
+      }
     }
 
     return NextResponse.json({ 
