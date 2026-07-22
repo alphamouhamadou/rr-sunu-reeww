@@ -6,13 +6,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const memberId = searchParams.get('memberId')
     const email = searchParams.get('email')
+    const membershipNumber = searchParams.get('cardNumber')
 
-    if (!memberId && !email) {
-      return NextResponse.json({ error: 'memberId ou email requis' }, { status: 400 })
+    if (!memberId && !email && !membershipNumber) {
+      return NextResponse.json({ error: 'memberId, email ou cardNumber requis' }, { status: 400 })
     }
 
     const member = await db.member.findFirst({
-      where: memberId
+      where: membershipNumber
+        ? { membershipNumber: membershipNumber.toUpperCase() }
+        : memberId
         ? { id: memberId }
         : { email: email! },
       select: {
