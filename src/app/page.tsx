@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useAppStore } from '@/store/useAppStore'
+import { useEffect, useState } from 'react'
+import { useAppStore, useBrowserNavigation } from '@/store/useAppStore'
 import { Header } from '@/components/party/Header'
 import { HeroSection } from '@/components/party/HeroSection'
 import { NewsSection } from '@/components/party/NewsSection'
@@ -15,13 +15,31 @@ import { MobileBottomNav } from '@/components/mobile/MobileBottomNav'
 import { cn } from '@/lib/utils'
 
 export default function Home() {
-  const { currentSection } = useAppStore()
+  const { currentSection, _hasHydrated } = useAppStore()
+
+  // Initialize browser navigation (popstate, URL sync)
+  useEffect(() => {
+    useBrowserNavigation()
+  }, [])
 
   // Add mobile bottom padding class to body
   useEffect(() => {
     document.body.classList.add('mobile-bottom-padding')
     return () => document.body.classList.remove('mobile-bottom-padding')
   }, [])
+
+  // Wait for Zustand hydration to complete before rendering
+  // This prevents React error #310 (Objects not valid as React child)
+  if (!_hasHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#008751] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">

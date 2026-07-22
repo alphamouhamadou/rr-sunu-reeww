@@ -19,6 +19,10 @@ interface AppState {
   // UI state
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
+  
+  // Hydration
+  _hasHydrated: boolean
+  setHasHydrated: (state: boolean) => void
 }
 
 // Map sections to URL paths
@@ -41,13 +45,6 @@ const pathSections: Record<string, Section> = {
   '/don': 'donate',
   '/admin': 'admin',
   '/evenements': 'events'
-}
-
-// Get initial section from URL
-const getInitialSection = (): Section => {
-  if (typeof window === 'undefined') return 'home'
-  const path = window.location.pathname
-  return pathSections[path] || 'home'
 }
 
 export const useAppStore = create<AppState>()(
@@ -80,24 +77,40 @@ export const useAppStore = create<AppState>()(
       // UI
       sidebarOpen: false,
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      
+      // Hydration tracking
+      _hasHydrated: false,
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
     {
       name: 'rr-sunu-reew-storage',
       partialize: (state) => ({ isAdminAuthenticated: state.isAdminAuthenticated }),
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (!error && state) {
+            state.setHasHydrated(true)
+          }
+        }
+      },
     }
   )
 )
 
-// Initialize from URL and listen for browser back/forward
-if (typeof window !== 'undefined') {
+// Hook to safely listen for browser back/forward
+export function useBrowserNavigation() {
+  if (typeof window === 'undefined') return
+  
   // Set initial section from URL
-  const initialSection = getInitialSection()
-  useAppStore.setState({ currentSection: initialSection })
+  const path = window.location.pathname
+  const section = pathSections[path]
+  if (section) {
+    useAppStore.setState({ currentSection: section })
+  }
   
   // Listen for browser back/forward buttons
-  window.addEventListener('popstate', (event) => {
-    const path = window.location.pathname
-    const section = pathSections[path] || 'home'
-    useAppStore.setState({ currentSection: section })
+  window.addEventListener('popstate', () => {
+    const currentPath = window.location.pathname
+    const currentSection = pathSections[currentPath] || 'home'
+    useAppStore.setState({ currentSection: currentSection })
   })
 }
