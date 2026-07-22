@@ -53,12 +53,9 @@ export const useAppStore = create<AppState>()(
       // Navigation
       currentSection: 'home',
       setCurrentSection: (section) => {
-        // Update browser history
         if (typeof window !== 'undefined') {
           const path = sectionPaths[section] || '/'
           const currentPath = window.location.pathname
-          
-          // Only push to history if path is different
           if (currentPath !== path) {
             window.history.pushState({ section }, '', path)
           }
@@ -87,7 +84,11 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({ isAdminAuthenticated: state.isAdminAuthenticated }),
       onRehydrateStorage: () => {
         return (state, error) => {
-          if (!error && state) {
+          // Always mark as hydrated, even on error
+          if (error) {
+            console.warn('Zustand rehydration error:', error)
+          }
+          if (state) {
             state.setHasHydrated(true)
           }
         }
@@ -96,21 +97,29 @@ export const useAppStore = create<AppState>()(
   )
 )
 
-// Hook to safely listen for browser back/forward
-export function useBrowserNavigation() {
+// Safe browser navigation hook - must be called inside useEffect only
+export function initBrowserNavigation() {
   if (typeof window === 'undefined') return
   
-  // Set initial section from URL
   const path = window.location.pathname
   const section = pathSections[path]
   if (section) {
     useAppStore.setState({ currentSection: section })
   }
   
-  // Listen for browser back/forward buttons
   window.addEventListener('popstate', () => {
     const currentPath = window.location.pathname
     const currentSection = pathSections[currentPath] || 'home'
     useAppStore.setState({ currentSection: currentSection })
   })
+}
+
+// Fallback: if hydration takes too long, force it
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    const state = useAppStore.getState()
+    if (!state._hasHydrated) {
+      state.setHasHydrated(true)
+    }
+  }, 2000)
 }

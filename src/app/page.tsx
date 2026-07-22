@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAppStore, useBrowserNavigation } from '@/store/useAppStore'
+import { useAppStore, initBrowserNavigation } from '@/store/useAppStore'
 import { Header } from '@/components/party/Header'
 import { HeroSection } from '@/components/party/HeroSection'
 import { NewsSection } from '@/components/party/NewsSection'
@@ -19,7 +19,7 @@ export default function Home() {
 
   // Initialize browser navigation (popstate, URL sync)
   useEffect(() => {
-    useBrowserNavigation()
+    initBrowserNavigation()
   }, [])
 
   // Add mobile bottom padding class to body

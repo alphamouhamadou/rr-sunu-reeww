@@ -20,7 +20,7 @@ import {
   Mail, Phone, Search, Send, Loader2, TrendingUp, DollarSign, UserCheck,
   FileText, Calendar, Plus, Edit, Trash2, Save, AlertTriangle, Radio,
   Youtube, Facebook, Play, ExternalLink, Settings, CreditCard, Eye, EyeOff,
-  Download, Activity, Shield, Key, AlertCircle, ImageIcon, ArrowLeft
+  Download, Activity, Shield, Key, AlertCircle, ImageIcon, ArrowLeft, LogOut
 } from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
@@ -835,9 +835,22 @@ export function AdminSpace() {
     <div className="animate-fade-in">
       {/* Header */}
       <section className="party-gradient text-white py-6">
-        <div className="container mx-auto px-4">
-          <h1 className="text-2xl font-bold">Administration</h1>
-          <p className="text-green-100">Gestion de la plateforme RR Sunu Reew</p>
+        <div className="container mx-auto px-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Administration</h1>
+            <p className="text-green-100">Gestion de la plateforme RR Sunu Reew</p>
+          </div>
+          <button
+            onClick={() => {
+              useAppStore.getState().setIsAdminAuthenticated(false)
+              useAppStore.getState().setAdminSection('members')
+              useAppStore.getState().setCurrentSection('home')
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors text-white text-sm font-medium min-h-[44px] touch-manipulation"
+          >
+            <LogOut className="w-4 h-4" />
+            Déconnexion
+          </button>
         </div>
       </section>
 
