@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useAppStore } from '@/store/useAppStore'
 import { Header } from '@/components/party/Header'
 import { HeroSection } from '@/components/party/HeroSection'
@@ -11,47 +11,17 @@ import { DonationSection } from '@/components/party/DonationSection'
 import { AdminSpace } from '@/components/party/AdminSpace'
 import { LiveStreamSection } from '@/components/party/LiveStreamSection'
 import { NewsletterSection } from '@/components/party/NewsletterSection'
-import { GallerySection } from '@/components/party/GallerySection'
 import { MobileBottomNav } from '@/components/mobile/MobileBottomNav'
 import { cn } from '@/lib/utils'
 
-
-
 export default function Home() {
   const { currentSection } = useAppStore()
-  const [seeded, setSeeded] = useState(false)
-
-  // Seed database on first load
-  useEffect(() => {
-    const seedDatabase = async () => {
-      try {
-        const res = await fetch('/api/seed')
-        const data = await res.json()
-        if (data.message) setSeeded(true)
-      } catch (error) {
-        console.error('Seed error:', error)
-        setSeeded(true)
-      }
-    }
-    seedDatabase()
-  }, [])
 
   // Add mobile bottom padding class to body
   useEffect(() => {
     document.body.classList.add('mobile-bottom-padding')
     return () => document.body.classList.remove('mobile-bottom-padding')
   }, [])
-
-  if (!seeded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center party-gradient">
-        <div className="text-white text-center">
-          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg">Chargement...</p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -72,7 +42,6 @@ export default function Home() {
         {currentSection === 'join' && <JoinForm />}
         {currentSection === 'donate' && <DonationSection />}
         {currentSection === 'admin' && <AdminSpace />}
-        
       </main>
 
       {/* Footer - Hidden on mobile since we have bottom nav */}
