@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { senegalData } from '@/lib/senegal-data'
+import { hashPassword } from '@/lib/password'
 
 export async function GET() {
   try {
@@ -45,8 +46,8 @@ export async function GET() {
     const departments = await db.department.count()
     const communes = await db.commune.count()
 
-    // Create admin user
-    const adminPassword = Buffer.from('Thienaba10@').toString('base64')
+    // Create admin user (bcrypt hashed password with 12 rounds)
+    const adminPassword = await hashPassword('Thienaba10@')
     const admin = await db.member.create({
       data: {
         email: 'alphamouhamadoudiop@gmail.com',
@@ -66,8 +67,8 @@ export async function GET() {
       }
     })
 
-    // Create sample members
-    const memberPassword = Buffer.from('member123').toString('base64')
+    // Create sample members (bcrypt hashed password with 12 rounds)
+    const memberPassword = await hashPassword('member123')
     const sampleMembers = [
       {
         email: 'amadou.diop@exemple.sn',
