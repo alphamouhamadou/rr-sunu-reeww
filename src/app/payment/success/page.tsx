@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { CheckCircle, Loader2 } from 'lucide-react'
 
-export default function PaymentSuccess() {
+function PaymentSuccessContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [message, setMessage] = useState('Vérification du paiement...')
@@ -13,7 +13,6 @@ export default function PaymentSuccess() {
     const ref = searchParams.get('ref') || ''
     const pending = searchParams.get('pending') === 'true'
 
-    // Store payment ref for the app to pick up
     if (ref) {
       sessionStorage.setItem('lastPaymentRef', ref)
     }
@@ -24,7 +23,6 @@ export default function PaymentSuccess() {
       setMessage('Paiement effectué avec succès !')
     }
 
-    // Redirect to home after 3 seconds
     const timer = setTimeout(() => {
       router.push('/')
     }, 3000)
@@ -50,5 +48,17 @@ export default function PaymentSuccess() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PaymentSuccess() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#008751] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-white" />
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   )
 }
