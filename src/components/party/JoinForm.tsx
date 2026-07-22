@@ -382,7 +382,7 @@ export function JoinForm() {
   }
 
   // Handle card payment initiation
-  const handleCardPayment = async () => {
+    const handleCardPayment = async () => {
     if (!registeredMemberId) return
     setCardPaymentLoading(true)
     try {
@@ -401,19 +401,22 @@ export function JoinForm() {
       const data = await res.json()
       if (data.redirectUrl || data.redirect_url) {
         const url = data.redirectUrl || data.redirect_url
-        setCardPaymentUrl(url)
-        // Mark as paid immediately in test mode
+        // Test mode: stay on page and show card directly
         if (data.testMode) {
- await fetch('/api/card', {
+          await fetch('/api/card', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ memberId: registeredMemberId, paymentRef: data.refCommand })
           })
           setCardPaid(true)
-          // Fetch card info
           const cardRes = await fetch(`/api/card?memberId=${registeredMemberId}`)
           const cardData = await cardRes.json()
           if (cardData.member) setCardInfo(cardData.member)
+        } else {
+          // Real PayTech: store info and redirect
+          sessionStorage.setItem('pendingCardMemberId', registeredMemberId)
+          sessionStorage.setItem('pendingCardEmail', formData.email)
+          window.location.href = url
         }
       } else {
         setError(data.error || 'Erreur lors de l\'initialisation du paiement')

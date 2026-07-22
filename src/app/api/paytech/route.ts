@@ -34,18 +34,16 @@ export async function POST(request: NextRequest) {
     
     const refCommand = `RR-${type.toUpperCase()}-${Date.now()}`
     
-    // IMPORTANT: PayTech exige des URLs HTTPS
-    // En local, utiliser une URL de redirection temporaire
     const isLocalDev = !appUrl || appUrl.includes('localhost')
     const baseUrl = isLocalDev 
-      ? 'https://rrsunureew.sn'  // URL de prod (ou mettre votre domaine HTTPS)
+      ? 'https://rrsunureew.sn'
       : appUrl
 
     // MODE TEST - Pas de clés configurées
     if (!hasValidKeys(apiKey, secretKey)) {
       console.log('🔧 MODE TEST - Pas de clés PayTech')
       
-      const testUrl = `${baseUrl}/payment/success?ref=${refCommand}`
+      const testUrl = `${baseUrl}/payment/success?ref=${refCommand}&type=${type}`
       
       return NextResponse.json({
         success: 1,
@@ -62,8 +60,7 @@ export async function POST(request: NextRequest) {
     console.log(`   Montant: ${amount} XOF`)
     console.log(`   Réf: ${refCommand}`)
 
-    // URLs HTTPS obligatoires pour PayTech
-    const successUrl = `${baseUrl}/payment/success?ref=${refCommand}`
+    const successUrl = `${baseUrl}/payment/success?ref=${refCommand}&type=${type}`
     const cancelUrl = `${baseUrl}/payment/cancel?ref=${refCommand}`
     const ipnUrl = `${baseUrl}/api/paytech/webhook`
 
@@ -77,6 +74,10 @@ export async function POST(request: NextRequest) {
     formData.append('success_url', successUrl)
     formData.append('cancel_url', cancelUrl)
     formData.append('ipn_url', ipnUrl)
+    // Send custom_field with memberId and type for webhook processing
+    if (memberId) {
+      formData.append('custom_field', JSON.stringify({ type, memberId, memberEmail: customerEmail || '' }))
+    }
 
     console.log('📤 success_url:', successUrl)
 
@@ -102,10 +103,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: 0, error: 'Réponse invalide de PayTech' }, { status: 400 })
     }
 
-    // Erreur PayTech
     if (result.success !== 1) {
       if (result.message?.includes('activer') || result.message?.includes('contactez')) {
-        const pendingUrl = `${baseUrl}/payment/success?ref=${refCommand}&pending=true`
+        const pendingUrl = `${baseUrl}/payment/success?ref=${refCommand}&pending=true&type=${type}`
         return NextResponse.json({
           success: 1,
           pendingMode: true,
@@ -120,7 +120,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: 0, error: result.message || 'Erreur PayTech' }, { status: 400 })
     }
 
-    // ✅ SUCCÈS
     const redirectUrl = result.redirect_url || result.redirectUrl || ''
     console.log('✅ SUCCÈS PayTech!')
     console.log(`   URL: ${redirectUrl}`)

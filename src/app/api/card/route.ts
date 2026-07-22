@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-// Check card payment status & get member info for card generation
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const memberId = searchParams.get('memberId')
+    const email = searchParams.get('email')
 
-    if (!memberId) {
-      return NextResponse.json({ error: 'memberId requis' }, { status: 400 })
+    if (!memberId && !email) {
+      return NextResponse.json({ error: 'memberId ou email requis' }, { status: 400 })
     }
 
-    const member = await db.member.findUnique({
-      where: { id: memberId },
+    const member = await db.member.findFirst({
+      where: memberId
+        ? { id: memberId }
+        : { email: email! },
       select: {
         id: true,
         firstName: true,
@@ -47,7 +49,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Mark card as paid after PayTech webhook confirms payment
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
