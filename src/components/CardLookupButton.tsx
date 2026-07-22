@@ -20,26 +20,28 @@ interface CardLookupMember {
 export default function CardLookupButton() {
   const [open, setOpen] = useState(false)
   const [cardInput, setCardInput] = useState('')
+  const [emailInput, setEmailInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [member, setMember] = useState<CardLookupMember | null>(null)
   const [error, setError] = useState('')
 
   const handleSearch = async () => {
     const trimmed = cardInput.trim().toUpperCase()
-    if (!trimmed) return
+    const email = emailInput.trim().toLowerCase()
+    if (!trimmed || !email) return
 
     setLoading(true)
     setError('')
     setMember(null)
 
     try {
-      const res = await fetch(`/api/card?cardNumber=${encodeURIComponent(trimmed)}`)
+      const res = await fetch(`/api/card?cardNumber=${encodeURIComponent(trimmed)}&email=${encodeURIComponent(email)}`)
       const data = await res.json()
 
       if (data.member) {
         setMember(data.member)
       } else {
-        setError('Aucune carte trouvée avec ce numéro.')
+        setError('Numéro d\'adhésion ou email incorrect.')
       }
     } catch {
       setError('Erreur de connexion au serveur.')
@@ -67,6 +69,7 @@ export default function CardLookupButton() {
   const handleClose = () => {
     setOpen(false)
     setCardInput('')
+    setEmailInput('')
     setMember(null)
     setError('')
   }
@@ -103,31 +106,46 @@ export default function CardLookupButton() {
               {!member ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Numéro de carte
+                    Numéro d'adhésion
                   </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={cardInput}
-                      onChange={(e) => { setCardInput(e.target.value); setError('') }}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Ex: RR-000002"
-                      className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#008751] focus:border-transparent outline-none placeholder:text-gray-400 uppercase"
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleSearch}
-                      disabled={loading || !cardInput.trim()}
-                      className="bg-[#008751] hover:bg-[#006d42] disabled:bg-gray-300 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-                    >
-                      {loading ? (
+                  <input
+                    type="text"
+                    value={cardInput}
+                    onChange={(e) => { setCardInput(e.target.value); setError('') }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ex: SN-RR-000005"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#008751] focus:border-transparent outline-none placeholder:text-gray-400 uppercase mb-3"
+                    autoFocus
+                  />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Adresse email
+                  </label>
+                  <input
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => { setEmailInput(e.target.value); setError('') }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ex: prenom.nom@email.com"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#008751] focus:border-transparent outline-none placeholder:text-gray-400 mb-3"
+                  />
+
+                  <button
+                    onClick={handleSearch}
+                    disabled={loading || !cardInput.trim() || !emailInput.trim()}
+                    className="w-full bg-[#008751] hover:bg-[#006d42] disabled:bg-gray-300 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
                         <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
-                      ) : 'Chercher'}
-                    </button>
-                  </div>
+                        Recherche...
+                      </span>
+                    ) : 'Rechercher ma carte'}
+                  </button>
+
                   {error && (
                     <p className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
                   )}
@@ -161,7 +179,7 @@ export default function CardLookupButton() {
                   {/* Boutons */}
                   <div className="flex gap-3">
                     <button
-                      onClick={() => { setMember(null); setCardInput(''); setError('') }}
+                      onClick={() => { setMember(null); setCardInput(''); setEmailInput(''); setError('') }}
                       className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors"
                     >
                       Nouvelle recherche

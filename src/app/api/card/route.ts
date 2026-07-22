@@ -14,7 +14,10 @@ export async function GET(request: NextRequest) {
 
     const member = await db.member.findFirst({
       where: membershipNumber
-        ? { membershipNumber: membershipNumber.toUpperCase() }
+        ? { 
+            membershipNumber: membershipNumber.toUpperCase(),
+            ...(email ? { email: email.toLowerCase() } : {})
+          }
         : memberId
         ? { id: memberId }
         : { email: email! },
