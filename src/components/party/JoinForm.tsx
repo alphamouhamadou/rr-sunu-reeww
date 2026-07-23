@@ -396,6 +396,7 @@ export function JoinForm() {
 
   // Handle card payment initiation
   // Handle card payment initiation
+   // Handle card payment initiation
   const [paymentError, setPaymentError] = useState('')
   const handleCardPayment = async () => {
     if (!registeredMemberId) {
@@ -420,12 +421,11 @@ export function JoinForm() {
       const data = await res.json()
       console.log('💳 PayTech response:', data)
       
+      // TEST MODE — pas de clés PayTech configurées
       if (data.testMode) {
-        // Test mode: directly mark card as paid and send confirmation email
         console.log('🔧 MODE TEST - Activation directe de la carte')
         sessionStorage.setItem('pendingCardMemberId', registeredMemberId)
         sessionStorage.setItem('pendingCardEmail', formData.email)
-        // Call the card API directly to simulate payment success
         const cardRes = await fetch('/api/card', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -433,7 +433,6 @@ export function JoinForm() {
         })
         const cardData = await cardRes.json()
         if (cardData.success) {
-          // Fetch full member info for card generation
           const infoRes = await fetch(`/api/card?memberId=${registeredMemberId}`)
           const infoData = await infoRes.json()
           if (infoData.member) {
@@ -441,24 +440,50 @@ export function JoinForm() {
             setCardInfo(infoData.member)
           }
         } else {
-          setPaymentError('Erreur lors de l\'activation de la carte')
+          setPaymentError("Erreur lors de l'activation de la carte")
         }
         return
       }
       
+      // PROD MODE — PayTech a retourné une URL de redirection
       if (data.redirectUrl || data.redirect_url) {
         const url = data.redirectUrl || data.redirect_url
-        // Store memberId and email in sessionStorage for success page
         sessionStorage.setItem('pendingCardMemberId', registeredMemberId)
         sessionStorage.setItem('pendingCardEmail', formData.email)
-        // Redirect to PayTech
         window.location.href = url
         return
-      } else {
-        setPaymentError(data.error || 'Erreur lors de l\'initialisation du paiement')
       }
+      
+      // PayTech n'a pas retourné de redirect URL.
+      // MAIS le webhook a peut-être déjà activé la carte.
+      // On vérifie directement dans la base.
+      console.log('⚠️ Pas de redirect URL, vérification webhook...')
+      await new Promise(r => setTimeout(r, 2000)) // attendre 2s
+      const checkRes = await fetch(`/api/card?memberId=${registeredMemberId}`)
+      const checkData = await checkRes.json()
+      if (checkData.member?.hasPaidCard) {
+        console.log('✅ Carte déjà activée par le webhook!')
+        setCardPaid(true)
+        setCardInfo(checkData.member)
+        return
+      }
+      
+      // La carte n'est pas encore activée — afficher l'erreur + bouton de vérification
+      setPaymentError(data.error || "Erreur PayTech. Si vous avez déjà payé, cliquez sur vérifier ci-dessous.")
+      
     } catch (err) {
       console.error('💳 Payment error:', err)
+      // Même en cas d'erreur réseau, vérifier si le webhook a fonctionné
+      try {
+        await new Promise(r => setTimeout(r, 2000))
+        const checkRes = await fetch(`/api/card?memberId=${registeredMemberId}`)
+        const checkData = await checkRes.json()
+        if (checkData.member?.hasPaidCard) {
+          setCardPaid(true)
+          setCardInfo(checkData.member)
+          return
+        }
+      } catch { /* ignore */ }
       setPaymentError('Erreur de connexion au serveur')
     } finally {
       setCardPaymentLoading(false)
@@ -643,6 +668,7 @@ export function JoinForm() {
             </p>
             
             {/* Card payment section */}
+                        {/* Card payment section */}
             <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 mb-6 text-left">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-[#008751]/10 flex items-center justify-center">
@@ -653,7 +679,7 @@ export function JoinForm() {
                   <p className="text-xs text-gray-500">Payez 1 000 FCFA pour recevoir votre carte</p>
                 </div>
               </div>
-                {paymentError && (
+              {paymentError && (
                 <Alert className="mb-3 bg-red-50 border-red-200">
                   <AlertDescription className="text-red-600 text-xs">{paymentError}</AlertDescription>
                 </Alert>
@@ -667,6 +693,31 @@ export function JoinForm() {
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Traitement...</>
                 ) : (
                   <>Payer 1 000 FCFA - Ma carte</>
+                )}
+              </Button>
+              {/* Bouton vérifier si le webhook a déjà activé la carte */}
+              <Button 
+                variant="outline"
+                className="w-full min-h-[44px] mt-2"
+                onClick={async () => {
+                  setPaymentError('')
+                  setCardPaymentLoading(true)
+                  const res = await fetch(`/api/card?memberId=${registeredMemberId}`)
+                  const data = await res.json()
+                  if (data.member?.hasPaidCard) {
+                    setCardPaid(true)
+                    setCardInfo(data.member)
+                  } else {
+                    setPaymentError('Paiement pas encore confirmé. Réessayez dans quelques instants.')
+                  }
+                  setCardPaymentLoading(false)
+                }}
+                disabled={cardPaymentLoading}
+              >
+                {cardPaymentLoading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Vérification...</>
+                ) : (
+                  <>J'ai déjà payé - Vérifier</>
                 )}
               </Button>
             </div>
