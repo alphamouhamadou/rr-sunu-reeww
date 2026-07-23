@@ -42,40 +42,51 @@ const diasporaCountries = [
   { code: 'GB', name: 'Royaume-Uni', phoneCode: '+44' },
   { code: 'CA', name: 'Canada', phoneCode: '+1' },
   { code: 'MA', name: 'Maroc', phoneCode: '+212' },
-  { code: 'TN', name: 'Tunisie', phoneCode: '+216' },
-  { code: 'CI', name: 'Côte d\'Ivoire', phoneCode: '+225' },
   { code: 'ML', name: 'Mali', phoneCode: '+223' },
-  { code: 'BF', name: 'Burkina Faso', phoneCode: '+226' },
   { code: 'GN', name: 'Guinée', phoneCode: '+224' },
-  { code: 'MR', name: 'Mauritanie', phoneCode: '+222' },
-  { code: 'GQ', name: 'Guinée équatoriale', phoneCode: '+240' },
+  { code: 'CM', name: 'Cameroun', phoneCode: '+237' },
+  { code: 'CI', name: 'Côte d\'Ivoire', phoneCode: '+225' },
+  { code: 'BF', name: 'Burkina Faso', phoneCode: '+226' },
+  { code: 'NE', name: 'Niger', phoneCode: '+227' },
+  { code: 'TD', name: 'Tchad', phoneCode: '+235' },
   { code: 'GA', name: 'Gabon', phoneCode: '+241' },
   { code: 'CG', name: 'Congo', phoneCode: '+242' },
   { code: 'CD', name: 'RD Congo', phoneCode: '+243' },
-  { code: 'AE', name: 'Émirats Arabes Unis', phoneCode: '+971' },
+  { code: 'AO', name: 'Angola', phoneCode: '+244' },
   { code: 'SA', name: 'Arabie Saoudite', phoneCode: '+966' },
+  { code: 'AE', name: 'Émirats Arabes Unis', phoneCode: '+971' },
   { code: 'QA', name: 'Qatar', phoneCode: '+974' },
+  { code: 'KW', name: 'Koweït', phoneCode: '+965' },
+  { code: 'LY', name: 'Libye', phoneCode: '+218' },
+  { code: 'TN', name: 'Tunisie', phoneCode: '+216' },
+  { code: 'DZ', name: 'Algérie', phoneCode: '+213' },
+  { code: 'PT', name: 'Portugal', phoneCode: '+351' },
+  { code: 'NL', name: 'Pays-Bas', phoneCode: '+31' },
+  { code: 'CH', name: 'Suisse', phoneCode: '+41' },
+  { code: 'SE', name: 'Suède', phoneCode: '+46' },
+  { code: 'DK', name: 'Danemark', phoneCode: '+45' },
+  { code: 'NO', name: 'Norvège', phoneCode: '+47' },
+  { code: 'FI', name: 'Finlande', phoneCode: '+358' },
+  { code: 'GR', name: 'Grèce', phoneCode: '+30' },
+  { code: 'LU', name: 'Luxembourg', phoneCode: '+352' },
+  { code: 'RU', name: 'Russie', phoneCode: '+7' },
   { code: 'CN', name: 'Chine', phoneCode: '+86' },
   { code: 'JP', name: 'Japon', phoneCode: '+81' },
-  { code: 'KR', name: 'Corée du Sud', phoneCode: '+82' },
-  { code: 'AU', name: 'Australie', phoneCode: '+61' },
+  { code: 'IN', name: 'Inde', phoneCode: '+91' },
   { code: 'BR', name: 'Brésil', phoneCode: '+55' },
   { code: 'AR', name: 'Argentine', phoneCode: '+54' },
-  { code: 'OTHER', name: 'Autre pays', phoneCode: '' },
-].sort((a, b) => a.name.localeCompare(b.name))
+  { code: 'MX', name: 'Mexique', phoneCode: '+52' },
+  { code: 'AU', name: 'Australie', phoneCode: '+61' },
+  { code: 'ZA', name: 'Afrique du Sud', phoneCode: '+27' },
+  { code: 'EG', name: 'Égypte', phoneCode: '+20' },
+  { code: 'IL', name: 'Israël', phoneCode: '+972' },
+  { code: 'TR', name: 'Turquie', phoneCode: '+90' },
+  { code: 'US', name: 'États-Unis', phoneCode: '+1' },
+]
 
-// Phone number formatting utility - supports international format
-const formatPhoneNumber = (value: string): string => {
-  // Remove all non-digits and non-plus
+// Format phone number for display
+function formatPhoneNumber(value: string): string {
   let cleaned = value.replace(/[^\d+]/g, '')
-  
-  // Ensure only one + at the beginning
-  if (cleaned.indexOf('+') > 0) {
-    cleaned = cleaned.replace(/\+/g, '')
-    cleaned = '+' + cleaned
-  } else if (cleaned.includes('+') && !cleaned.startsWith('+')) {
-    cleaned = cleaned.replace(/\+/g, '')
-  }
   
   // If empty or just +, return as is
   if (cleaned.length <= 1) return cleaned
@@ -135,6 +146,7 @@ export function JoinForm() {
   const [regions, setRegions] = useState<Region[]>([])
   // Card payment state
   const [registeredMemberId, setRegisteredMemberId] = useState('')
+  const [registeredMembershipNumber, setRegisteredMembershipNumber] = useState('')
   const [cardPaymentUrl, setCardPaymentUrl] = useState('')
   const [cardPaymentLoading, setCardPaymentLoading] = useState(false)
   const [cardPaid, setCardPaid] = useState(false)
@@ -373,6 +385,7 @@ export function JoinForm() {
 
       setSuccess(true)
       setRegisteredMemberId(data.memberId || '')
+      setRegisteredMembershipNumber(data.membershipNumber || '')
     } catch (err) {
       setError('Erreur de connexion au serveur')
       console.error(err)
@@ -382,7 +395,7 @@ export function JoinForm() {
   }
 
   // Handle card payment initiation
-    const handleCardPayment = async () => {
+  const handleCardPayment = async () => {
     if (!registeredMemberId) return
     setCardPaymentLoading(true)
     try {
@@ -401,23 +414,12 @@ export function JoinForm() {
       const data = await res.json()
       if (data.redirectUrl || data.redirect_url) {
         const url = data.redirectUrl || data.redirect_url
-        // Test mode: stay on page and show card directly
-        if (data.testMode) {
-          await fetch('/api/card', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ memberId: registeredMemberId, paymentRef: data.refCommand })
-          })
-          setCardPaid(true)
-          const cardRes = await fetch(`/api/card?memberId=${registeredMemberId}`)
-          const cardData = await cardRes.json()
-          if (cardData.member) setCardInfo(cardData.member)
-        } else {
-          // Real PayTech: store info and redirect
-          sessionStorage.setItem('pendingCardMemberId', registeredMemberId)
-          sessionStorage.setItem('pendingCardEmail', formData.email)
-          window.location.href = url
-        }
+        // Store memberId and email in sessionStorage for success page
+        sessionStorage.setItem('pendingCardMemberId', registeredMemberId)
+        sessionStorage.setItem('pendingCardEmail', formData.email)
+        // Redirect to PayTech
+        window.location.href = url
+        return
       } else {
         setError(data.error || 'Erreur lors de l\'initialisation du paiement')
       }
@@ -562,7 +564,7 @@ export function JoinForm() {
                 Votre carte membre est prete.
               </p>
               <p className="text-gray-500 mb-6 text-xs">
-                N° Membre : <span className="font-semibold">{cardInfo.membershipNumber || 'En attente de validation'}</span>
+                N° Membre : <span className="font-semibold">{cardInfo.membershipNumber || registeredMembershipNumber}</span>
               </p>
               <div className="space-y-3">
                 <Button 
@@ -594,10 +596,15 @@ export function JoinForm() {
             <div className="w-16 h-16 rounded-full bg-[#008751]/10 flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-8 h-8 text-[#008751]" />
             </div>
-            <h2 className="text-xl md:text-2xl font-bold text-[#008751] mb-4">Inscription reussie !</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-[#008751] mb-2">Bienvenue parmi nous !</h2>
+            {registeredMembershipNumber && (
+              <p className="text-sm font-semibold text-[#008751] bg-[#008751]/10 rounded-lg py-2 px-4 mb-4">
+                N° Membre : {registeredMembershipNumber}
+              </p>
+            )}
             <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm md:text-base">
-              Votre demande d'adhesion a ete enregistree avec succes.
-              Notre equipe va examiner votre dossier sous 48h.
+              Votre adhesion a ete enregistree avec succes.
+              Payez maintenant les frais de carte pour recevoir votre carte membre.
             </p>
             
             {/* Card payment section */}
@@ -1117,7 +1124,7 @@ export function JoinForm() {
                 <Alert className="bg-[#FFD100]/10 border-[#FFD100]">
                   <AlertDescription className="text-sm">
                     <strong>Important :</strong> Tous les champs marqués d'un astérisque (*) sont obligatoires.
-                    Votre demande sera examinée par notre équipe dans un délai de 48h.
+                    Après validation, payez les frais de carte pour recevoir votre carte membre immédiatement.
                   </AlertDescription>
                 </Alert>
               </div>
