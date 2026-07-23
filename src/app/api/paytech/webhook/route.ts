@@ -82,12 +82,40 @@ export async function POST(request: NextRequest) {
     } else if (paymentType === 'card_fee' && memberId) {
       console.log('✅ Frais de carte payé pour:', memberId)
       try {
+        // Get current member to check if they already have a membership number
+        const currentMember = await db.member.findUnique({
+          where: { id: memberId },
+          select: { membershipNumber: true, status: true }
+        })
+
+        const updateData: Record<string, unknown> = {
+          hasPaidCard: true,
+          cardPaidAt: new Date(),
+          status: 'approved',
+        }
+
+        // Generate membership number if not already assigned (safety net)
+        if (!currentMember?.membershipNumber) {
+          // Find the max existing membership number and increment
+          const lastMember = await db.member.findFirst({
+            where: { membershipNumber: { not: null, startsWith: 'SN-RR-' } },
+            select: { membershipNumber: true },
+            orderBy: { membershipNumber: 'desc' },
+          })
+          let nextNum = 1
+          if (lastMember?.membershipNumber) {
+            const parts = lastMember.membershipNumber.split('-')
+            const parsed = parseInt(parts[parts.length - 1], 10)
+            if (!isNaN(parsed)) nextNum = parsed + 1
+          }
+          updateData.membershipNumber = `SN-RR-${String(nextNum).padStart(6, '0')}`
+          updateData.membershipDate = new Date()
+          console.log('📋 Numéro de membre généré:', updateData.membershipNumber)
+        }
+
         await db.member.update({
           where: { id: memberId },
-          data: {
-            hasPaidCard: true,
-            cardPaidAt: new Date(),
-          }
+          data: updateData,
         })
         console.log('✅ Carte membre activée pour:', memberId)
       } catch (e) {
