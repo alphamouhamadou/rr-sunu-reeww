@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
 import { sendEmail, generateWelcomeEmail, generateRejectionEmail, generateRegistrationConfirmationEmail } from '@/lib/email-service'
+import { logActivity } from '@/lib/activity-logger'
 import crypto from 'crypto'
 
 // Get all members (admin) or register new member
@@ -108,22 +109,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if CNI already exists
-const existingCNI = await db.member.findFirst({
-  where: { cniNumber: cniNumber.trim() }
-})
+    const existingCNI = await db.member.findFirst({
+      where: { cniNumber: cniNumber.trim() }
+    })
 
-if (existingCNI) {
-  return NextResponse.json({ error: 'Ce numéro de carte d\'identité est déjà enregistré' }, { status: 400 })
-}
+    if (existingCNI) {
+      return NextResponse.json({ error: 'Ce numéro de carte d\'identité est déjà enregistré' }, { status: 400 })
+    }
 
     // Check if phone already exists
-const existingPhone = await db.member.findFirst({
-  where: { phone: phone.trim() }
-})
+    const existingPhone = await db.member.findFirst({
+      where: { phone: phone.trim() }
+    })
 
-if (existingPhone) {
-  return NextResponse.json({ error: 'Ce numéro de téléphone est déjà enregistré' }, { status: 400 })
-}
+    if (existingPhone) {
+      return NextResponse.json({ error: 'Ce numéro de téléphone est déjà enregistré' }, { status: 400 })
+    }
 
     // Déterminer le type de résidence
     const memberResidenceType = residenceType || (isDiaspora ? 'diaspora' : 'senegal')
@@ -147,6 +148,10 @@ if (existingPhone) {
     // Auto-generate a random password (not needed for public users, but required by DB schema)
     const autoPassword = crypto.randomBytes(16).toString('hex')
     const hashedPassword = await hashPassword(autoPassword)
+
+    // Auto-approve: generate membership number immediately (no admin approval needed)
+    const count = await db.member.count({ where: { status: 'approved' } })
+    const membershipNumber = `SN-RR-${String(count + 1).padStart(6, '0')}`
 
     const member = await db.member.create({
       data: {
@@ -172,27 +177,41 @@ if (existingPhone) {
         hasVoterCard: hasVoterCard || false,
         voterCardNumber: hasVoterCard ? voterCardNumber : null,
         role: 'member',
-        status: 'pending',
+        status: 'approved',
         emailVerified: true,
+        membershipNumber,
+        membershipDate: new Date(),
       }
     })
 
-    // Send registration confirmation email (non-blocking)
-    const confirmationEmailData = generateRegistrationConfirmationEmail({
+    // Log auto-approval activity
+    logActivity({
+      action: 'create',
+      entityType: 'member',
+      entityId: member.id,
+      details: JSON.stringify({ membershipNumber, autoApproved: true }),
+    }).catch(() => {})
+
+    // Send welcome email with membership number (non-blocking)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const emailData = generateWelcomeEmail({
       memberName: `${firstName} ${lastName}`,
-      email: email.toLowerCase()
+      email: email.toLowerCase(),
+      membershipNumber,
+      loginUrl: appUrl
     })
 
     sendEmail({
       to: email.toLowerCase(),
-      subject: confirmationEmailData.subject,
-      html: confirmationEmailData.html,
-      text: confirmationEmailData.text
-    }).catch(err => console.error('Failed to send registration email:', err))
+      subject: emailData.subject,
+      html: emailData.html,
+      text: emailData.text
+    }).catch(err => console.error('Failed to send welcome email:', err))
 
     return NextResponse.json({ 
-      message: 'Inscription réussie. Votre demande est en cours de traitement.',
+      message: 'Inscription réussie ! Vous êtes maintenant membre de Renaissance Républicaine Sunu Reew.',
       memberId: member.id,
+      membershipNumber,
     })
   } catch (error) {
     console.error('Register error:', error)
