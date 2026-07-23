@@ -10,11 +10,14 @@ interface CardLookupMember {
   membershipNumber: string
   phone?: string
   email?: string
+  photo?: string | null
   hasPaidCard: boolean
   membershipDate?: string
-  region?: { name: string }
-  department?: { name: string }
-  commune?: { name: string }
+  department?: { name: string } | null
+  commune?: { name: string } | null
+  cityAbroad?: string | null
+  country?: string | null
+  region?: { name: string } | null
 }
 
 export default function CardLookupButton() {
@@ -54,15 +57,20 @@ export default function CardLookupButton() {
     if (e.key === 'Enter') handleSearch()
   }
 
-  const handleDownload = () => {
+    const handleDownload = async () => {
     if (!member) return
-    generateCardPDF({
+    await generateCardPDF({
       firstName: member.firstName,
       lastName: member.lastName,
       membershipNumber: member.membershipNumber,
       phone: member.phone,
       email: member.email,
       membershipDate: member.membershipDate,
+      photo: member.photo,
+      department: member.department,
+      commune: member.commune,
+      cityAbroad: member.cityAbroad,
+      country: member.country,
     })
   }
 
