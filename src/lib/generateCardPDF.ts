@@ -43,58 +43,67 @@ const loadImageAsBase64 = (url: string): Promise<string> => {
 
 export async function generateCardPDF(member: CardMemberData) {
   const pdf = new jsPDF({
-    orientation: 'portrait',
+    orientation: 'landscape',
     unit: 'mm',
-    format: [53.98, 85.60]
+    format: [85.60, 53.98]
   })
 
-  const w = 53.98
-  const h = 85.60
+  const w = 85.60
+  const h = 53.98
   const mx = 4
 
   // ============ FOND BLANC ============
   pdf.setFillColor(255, 255, 255)
   pdf.rect(0, 0, w, h, 'F')
 
-  // ============ EN-TÊTE VERT ============
-  const headerH = 18
+  // ============ BANDE VERT GAUCHE (header vertical) ============
+  const bandW = 22
   pdf.setFillColor(0, 135, 81)
-  pdf.rect(0, 0, w, headerH, 'F')
+  pdf.rect(0, 0, bandW, h, 'F')
 
+  // Dégradé
+  pdf.setFillColor(0, 107, 64)
+  pdf.rect(0, h / 2, bandW, h / 2, 'F')
+
+  // Titre dans la bande
   pdf.setTextColor(255, 255, 255)
-  pdf.setFontSize(8)
+  pdf.setFontSize(7)
   pdf.setFont('helvetica', 'bold')
-  pdf.text('Renaissance Républicaine', mx, 7)
+  pdf.text('Renaissance', bandW / 2, 10, { align: 'center' })
+  pdf.text('Républicaine', bandW / 2, 15, { align: 'center' })
 
-  pdf.setFontSize(6)
+  pdf.setFontSize(5.5)
   pdf.setFont('helvetica', 'normal')
   pdf.setTextColor(144, 238, 144)
-  pdf.text('Sunu Reew', mx, 12)
+  pdf.text('Sunu Reew', bandW / 2, 19, { align: 'center' })
 
-  // Logo haut droite
+  // Logo dans la bande
   try {
     const logoBase64 = await loadImageAsBase64('/logo.png')
     pdf.setFillColor(255, 255, 255)
-    pdf.circle(w - 9, 9, 7, 'F')
-    pdf.addImage(logoBase64, 'PNG', w - 16, 2, 14, 14)
+    pdf.circle(bandW / 2, h - 10, 7, 'F')
+    pdf.addImage(logoBase64, 'PNG', bandW / 2 - 7, h - 17, 14, 14)
   } catch (e) {
     pdf.setFillColor(255, 255, 255)
-    pdf.circle(w - 9, 9, 7, 'F')
+    pdf.circle(bandW / 2, h - 10, 7, 'F')
     pdf.setFillColor(0, 135, 81)
-    pdf.circle(w - 9, 10.5, 6.5, 'F')
+    pdf.circle(bandW / 2, h - 8.5, 6.5, 'F')
     pdf.setFillColor(212, 175, 55)
-    pdf.rect(w - 15.5, 9, 13, 6.5, 'F')
+    pdf.rect(bandW / 2 - 6.5, h - 10, 13, 6.5, 'F')
     pdf.setTextColor(255, 255, 255)
     pdf.setFontSize(9)
     pdf.setFont('helvetica', 'bold')
-    pdf.text('RR', w - 9, 11.5, { align: 'center' })
+    pdf.text('RR', bandW / 2, h - 7.5, { align: 'center' })
   }
 
+  // ============ ZONE BLANCHE ============
+  const bodyX = bandW + 1
+
   // ============ PHOTO ============
-  const photoX = mx
-  const photoY = headerH + 2.5
+  const photoX = bodyX + 2
+  const photoY = 3
   const photoW = 16
-  const photoH = 21
+  const photoH = 22
 
   if (member.photo) {
     try {
@@ -113,48 +122,48 @@ export async function generateCardPDF(member: CardMemberData) {
   pdf.setLineWidth(0.3)
   pdf.roundedRect(photoX, photoY, photoW, photoH, 1.5, 1.5, 'S')
 
-  // ============ INFOS ============
-  const infoX = mx + photoW + 2.5
+  // ============ INFOS (à droite de la photo) ============
+  const infoX = photoX + photoW + 3
   const infoW = w - infoX - mx
-  let y = headerH + 4
+  let y = 4
 
   // NOM
   pdf.setTextColor(108, 117, 125)
-  pdf.setFontSize(3.8)
+  pdf.setFontSize(4)
   pdf.setFont('helvetica', 'normal')
   pdf.text('NOM', infoX, y)
 
-  y += 3.2
+  y += 3.5
   pdf.setTextColor(17, 24, 39)
-  pdf.setFontSize(7.5)
+  pdf.setFontSize(8)
   pdf.setFont('helvetica', 'bold')
   const fullName = `${member.firstName} ${member.lastName}`.toUpperCase()
   const nameLines = pdf.splitTextToSize(fullName, infoW)
   pdf.text(nameLines, infoX, y)
-  y += nameLines.length * 3 + 1.5
+  y += nameLines.length * 3.2 + 2
 
   // N° MEMBRE
   pdf.setTextColor(108, 117, 125)
-  pdf.setFontSize(3.8)
+  pdf.setFontSize(4)
   pdf.setFont('helvetica', 'normal')
   pdf.text('N° MEMBRE', infoX, y)
 
   y += 3
   pdf.setTextColor(0, 135, 81)
-  pdf.setFontSize(6.5)
+  pdf.setFontSize(7)
   pdf.setFont('helvetica', 'bold')
   pdf.text(member.membershipNumber || 'En attente', infoX, y)
 
   // TÉLÉPHONE
   y += 3.5
   pdf.setTextColor(108, 117, 125)
-  pdf.setFontSize(3.8)
+  pdf.setFontSize(4)
   pdf.setFont('helvetica', 'normal')
   pdf.text('TÉLÉPHONE', infoX, y)
 
   y += 3
   pdf.setTextColor(33, 37, 41)
-  pdf.setFontSize(6)
+  pdf.setFontSize(6.5)
   pdf.setFont('helvetica', 'bold')
   pdf.text(member.phone || 'N/A', infoX, y)
 
@@ -162,57 +171,30 @@ export async function generateCardPDF(member: CardMemberData) {
   const sepY = photoY + photoH + 3
   pdf.setDrawColor(222, 226, 230)
   pdf.setLineWidth(0.2)
-  pdf.line(mx, sepY, w - mx, sepY)
+  pdf.line(bodyX + 2, sepY, w - mx, sepY)
 
-  // ============ DÉPARTEMENT | COMMUNE ============
+  // ============ DÉPARTEMENT | COMMUNE | MEMBRE DEPUIS ============
   y = sepY + 3
-  const midX = w / 2
+  const col1 = bodyX + 2
+  const col2 = bodyX + 23
+  const col3 = bodyX + 42
 
   pdf.setTextColor(108, 117, 125)
   pdf.setFontSize(3.5)
-  pdf.text('DÉPARTEMENT', mx, y)
-  pdf.text('COMMUNE', midX + 1, y)
-
-  y += 3
-  pdf.setTextColor(33, 37, 41)
-  pdf.setFontSize(5.5)
-  pdf.setFont('helvetica', 'bold')
-  pdf.text(member.department?.name || member.cityAbroad || 'N/A', mx, y)
-  pdf.text(member.commune?.name || member.country || 'N/A', midX + 1, y)
-
-  // ============ PIED DE PAGE ============
-  const footerY = h - 18
-  pdf.setDrawColor(222, 226, 230)
-  pdf.setLineWidth(0.2)
-  pdf.line(mx, footerY, w - mx, footerY)
-
-  // Logo bas
-  try {
-    const logoBase64 = await loadImageAsBase64('/logo.png')
-    pdf.addImage(logoBase64, 'PNG', mx, footerY + 2, 9, 9)
-  } catch (e) {
-    pdf.setFillColor(0, 135, 81)
-    pdf.circle(mx + 4.5, footerY + 6.5, 4.5, 'F')
-    pdf.setFillColor(212, 175, 55)
-    pdf.rect(mx, footerY + 6.5, 9, 4.5, 'F')
-    pdf.setTextColor(255, 255, 255)
-    pdf.setFontSize(6)
-    pdf.setFont('helvetica', 'bold')
-    pdf.text('RR', mx + 4.5, footerY + 8, { align: 'center' })
-  }
-
-  // Membre depuis
-  pdf.setTextColor(108, 117, 125)
-  pdf.setFontSize(3.8)
   pdf.setFont('helvetica', 'normal')
-  pdf.text('Membre depuis', mx + 12, footerY + 4)
+  pdf.text('DÉPARTEMENT', col1, y)
+  pdf.text('COMMUNE', col2, y)
+  pdf.text('MEMBRE DEPUIS', col3, y)
 
+  y += 3.5
   pdf.setTextColor(33, 37, 41)
-  pdf.setFontSize(5)
+  pdf.setFontSize(6)
   pdf.setFont('helvetica', 'bold')
-  pdf.text(member.membershipDate ? formatDate(member.membershipDate) : 'En attente', mx + 12, footerY + 8)
+  pdf.text(member.department?.name || member.cityAbroad || 'N/A', col1, y)
+  pdf.text(member.commune?.name || member.country || 'N/A', col2, y)
+  pdf.text(member.membershipDate ? formatDate(member.membershipDate) : 'En attente', col3, y)
 
-  // QR Code
+  // ============ QR CODE (bas droite) ============
   if (member.membershipNumber) {
     try {
       const qr = await QRCode.toDataURL(member.membershipNumber, {
@@ -220,7 +202,7 @@ export async function generateCardPDF(member: CardMemberData) {
         margin: 1,
         color: { dark: '#008751', light: '#ffffff' }
       })
-      pdf.addImage(qr, 'PNG', w - mx - 12, footerY + 1, 12, 12)
+      pdf.addImage(qr, 'PNG', w - mx - 13, h - 15, 13, 13)
     } catch (e) {
       // QR optionnel
     }
