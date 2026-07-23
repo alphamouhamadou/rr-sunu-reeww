@@ -1,164 +1,137 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-const PAYTECH_URL = 'https://paytech.sn/api/payment/request-payment'
-
-async function getPayTechSettings() {
-  const settings = await db.setting.findMany({
-    where: {
-      key: { in: ['paytech_api_key', 'paytech_secret_key', 'paytech_mode', 'app_url'] }
-    }
-  })
-  
-  const settingsObj: Record<string, string> = {}
-  settings.forEach(s => { settingsObj[s.key] = s.value })
-  
-  return {
-    apiKey: settingsObj['paytech_api_key'] || '',
-    secretKey: settingsObj['paytech_secret_key'] || '',
-    mode: settingsObj['paytech_mode'] || 'test',
-    appUrl: settingsObj['app_url'] || '',
-  }
-}
-
-function hasValidKeys(apiKey: string, secretKey: string) {
-  return apiKey && apiKey.length > 5 && secretKey && secretKey.length > 5
-}
-
+// PayTech webhook for IPN (Instant Payment Notification)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { amount, type = 'donation', itemName, customerEmail, customerPhone, memberId } = body
-
-    const { apiKey, secretKey, appUrl } = await getPayTechSettings()
     
-    const refCommand = `RR-${type.toUpperCase()}-${Date.now()}`
-    
-    const isLocalDev = !appUrl || appUrl.includes('localhost')
-    const baseUrl = isLocalDev 
-      ? 'https://rrsunureew.sn'
-      : appUrl
+    console.log('📦 PayTech webhook reçu:', JSON.stringify(body, null, 2))
 
-    // MODE TEST - Pas de clés configurées
-    if (!hasValidKeys(apiKey, secretKey)) {
-      console.log('🔧 MODE TEST - Pas de clés PayTech')
-      
-      const testUrl = `${baseUrl}/payment/success?ref=${refCommand}&type=${type}`
-      
-      return NextResponse.json({
-        success: 1,
-        testMode: true,
-        redirect_url: testUrl,
-        redirectUrl: testUrl,
-        successRedirectUrl: testUrl,
-        token: `test-${refCommand}`,
-        refCommand,
-      })
+    const { 
+      type_event,
+      ref_command,
+      item_name,
+      item_price,
+      custom_field,
+      client_phone,
+      client_email,
+    } = body
+
+    // Vérifier le type d'événement
+    if (type_event !== 'sale_complete' && type_event !== 'payment_success') {
+      console.log('⚠️ Événement non géré:', type_event)
+      return NextResponse.json({ received: true, message: 'Event not handled' })
     }
 
-    console.log('💳 Appel PayTech')
-    console.log(`   Montant: ${amount} XOF`)
-    console.log(`   Réf: ${refCommand}`)
-
-    const successUrl = `${baseUrl}/payment/success?ref=${refCommand}&type=${type}`
-    const cancelUrl = `${baseUrl}/payment/cancel?ref=${refCommand}`
-    const ipnUrl = `${baseUrl}/api/paytech/webhook`
-
-    const formData = new URLSearchParams()
-    formData.append('item_name', itemName || `RR Sunu Reew - ${type}`)
-    formData.append('item_price', String(amount))
-    formData.append('currency', 'XOF')
-    formData.append('ref_command', refCommand)
-    formData.append('command_name', `Paiement ${type} - RR Sunu Reew`)
-    formData.append('env', 'test')
-    formData.append('success_url', successUrl)
-    formData.append('cancel_url', cancelUrl)
-    formData.append('ipn_url', ipnUrl)
-    // Send custom_field with memberId and type for webhook processing
-    if (memberId) {
-      formData.append('custom_field', JSON.stringify({ type, memberId, memberEmail: customerEmail || '' }))
-    }
-
-    console.log('📤 success_url:', successUrl)
-
-    const response = await fetch(PAYTECH_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'API_KEY': apiKey,
-        'API_SECRET': secretKey,
-      },
-      body: formData.toString(),
-    })
-
-    const responseText = await response.text()
-    console.log('📥 Status:', response.status)
-    console.log('📥 Réponse:', responseText.substring(0, 300))
-
-    let result
+    // Parser le champ custom
+    let customData = {}
     try {
-      result = JSON.parse(responseText)
-    } catch {
-      return NextResponse.json({ success: 0, error: 'Réponse invalide de PayTech' }, { status: 400 })
+      customData = custom_field ? JSON.parse(custom_field) : {}
+    } catch (e) {
+      console.log('⚠️ Impossible de parser custom_field')
+    }
+    
+    const { type: paymentType, memberId, memberEmail } = customData as {
+      type?: string
+      memberId?: string
+      memberEmail?: string
     }
 
-    if (result.success !== 1) {
-      if (result.message?.includes('activer') || result.message?.includes('contactez')) {
-        const pendingUrl = `${baseUrl}/payment/success?ref=${refCommand}&pending=true&type=${type}`
-        return NextResponse.json({
-          success: 1,
-          pendingMode: true,
-          redirect_url: pendingUrl,
-          redirectUrl: pendingUrl,
-          successRedirectUrl: pendingUrl,
-          token: `pending-${refCommand}`,
-          refCommand,
+    console.log('📋 Type:', paymentType, '| Montant:', item_price, 'FCFA | Ref:', ref_command)
+
+    // Traiter selon le type de paiement
+    if (paymentType === 'donation') {
+      try {
+        const donation = await db.donation.create({
+          data: {
+            memberId: memberId || null,
+            amount: parseFloat(item_price) || 0,
+            donorName: item_name || 'Donateur',
+            donorEmail: client_email || memberEmail || '',
+            donorPhone: client_phone || '',
+            paymentMethod: 'paytech',
+            paymentRef: ref_command,
+            status: 'completed',
+          }
         })
+        console.log('✅ Don enregistré:', donation.id)
+      } catch (e) {
+        console.log('⚠️ Erreur don (existe peut-être):', e)
       }
       
-      return NextResponse.json({ success: 0, error: result.message || 'Erreur PayTech' }, { status: 400 })
+    } else if (paymentType === 'contribution' && memberId) {
+      const month = new Date().toISOString().slice(0, 7)
+      
+      try {
+        const contribution = await db.contribution.create({
+          data: {
+            memberId,
+            amount: parseFloat(item_price) || 0,
+            month,
+            paymentMethod: 'paytech',
+            paymentRef: ref_command,
+            status: 'completed',
+          }
+        })
+        console.log('✅ Cotisation enregistrée:', contribution.id)
+      } catch (e) {
+        console.log('⚠️ Erreur cotisation:', e)
+      }
+      
+    } else if (paymentType === 'card_fee' && memberId) {
+      console.log('✅ Frais de carte payé pour:', memberId)
+      try {
+        // Get current member to check if they already have a membership number
+        const currentMember = await db.member.findUnique({
+          where: { id: memberId },
+          select: { membershipNumber: true, status: true }
+        })
+
+        const updateData: Record<string, unknown> = {
+          hasPaidCard: true,
+          cardPaidAt: new Date(),
+          status: 'approved',
+        }
+
+        // Generate membership number if not already assigned (safety net)
+        if (!currentMember?.membershipNumber) {
+          const count = await db.member.count({ where: { status: 'approved', membershipNumber: { not: null } } })
+          updateData.membershipNumber = `SN-RR-${String(count + 1).padStart(6, '0')}`
+          updateData.membershipDate = new Date()
+          console.log('📋 Numéro de membre généré:', updateData.membershipNumber)
+        }
+
+        await db.member.update({
+          where: { id: memberId },
+          data: updateData,
+        })
+        console.log('✅ Carte membre activée pour:', memberId)
+      } catch (e) {
+        console.log('⚠️ Erreur activation carte:', e)
+      }
     }
 
-    const redirectUrl = result.redirect_url || result.redirectUrl || ''
-    console.log('✅ SUCCÈS PayTech!')
-    console.log(`   URL: ${redirectUrl}`)
-
-    return NextResponse.json({
-      success: 1,
-      redirect_url: redirectUrl,
-      redirectUrl: redirectUrl,
-      successRedirectUrl: redirectUrl,
-      token: result.token,
-      refCommand,
+    return NextResponse.json({ 
+      received: true,
+      success: true,
+      ref_command,
     })
-
+    
   } catch (error) {
-    console.error('❌ Erreur:', error)
-    return NextResponse.json({ success: 0, error: 'Erreur serveur' }, { status: 500 })
+    console.error('❌ Webhook error:', error)
+    return NextResponse.json({ 
+      received: false, 
+      error: 'Webhook failed' 
+    }, { status: 500 })
   }
 }
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const token = searchParams.get('token')
-  
-  if (!token) return NextResponse.json({ error: 'Token requis' }, { status: 400 })
-  if (token.startsWith('test-') || token.startsWith('pending-')) {
-    return NextResponse.json({ success: 1, status: 'completed', testMode: true })
-  }
-  
-  const { apiKey, secretKey } = await getPayTechSettings()
-  if (!hasValidKeys(apiKey, secretKey)) {
-    return NextResponse.json({ success: 1, status: 'completed', testMode: true })
-  }
-
-  try {
-    const res = await fetch(`https://paytech.sn/api/payment/get-status?token_payment=${token}`, {
-      headers: { 'Accept': 'application/json', 'API_KEY': apiKey, 'API_SECRET': secretKey },
-    })
-    return NextResponse.json(await res.json())
-  } catch {
-    return NextResponse.json({ success: 1, status: 'pending' })
-  }
+// GET pour tester si le webhook est accessible
+export async function GET() {
+  return NextResponse.json({
+    status: 'active',
+    message: 'PayTech Webhook endpoint',
+    endpoint: '/api/paytech/webhook'
+  })
 }
