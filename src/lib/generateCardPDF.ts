@@ -7,63 +7,163 @@ export interface CardMemberData {
   phone?: string
   email?: string
   membershipDate?: string
+  photo?: string | null
+  department?: { name: string } | null
+  commune?: { name: string } | null
+  cityAbroad?: string | null
+  country?: string | null
 }
 
-export function generateCardPDF(member: CardMemberData) {
-  const doc = new jsPDF({
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+}
+
+const loadImageAsBase64 = (url: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')
+      ctx?.drawImage(img, 0, 0)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => reject(new Error('Image load failed'))
+    img.src = url
+  })
+}
+
+const calculateExpiryDate = (membershipDate: string): Date => {
+  const date = new Date(membershipDate)
+  date.setFullYear(date.getFullYear() + 5)
+  return date
+}
+
+export async function generateCardPDF(member: CardMemberData) {
+  const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
-    format: [85.6, 53.98],
+    format: [85.6, 53.98]
   })
 
-  const w = 85.6
-  const h = 53.98
+  const pageWidth = 85.6
+  const pageHeight = 53.98
 
-  doc.setFillColor(0, 135, 81)
-  doc.rect(0, 0, w, h, 'F')
+  // Header vert
+  pdf.setFillColor(0, 135, 81)
+  pdf.rect(0, 0, pageWidth, 18, 'F')
 
-  doc.setFillColor(212, 175, 55)
-  doc.rect(0, 0, w, 3, 'F')
-  doc.rect(0, h - 3, w, 3, 'F')
+  // Dégradé simulé
+  pdf.setFillColor(0, 107, 64)
+  pdf.rect(60, 0, 25.6, 18, 'F')
 
-  doc.setFontSize(18)
-  doc.setTextColor(255, 255, 255)
-  doc.setFont('helvetica', 'bold')
-  doc.text('RR', 5, 14)
+  // Titre
+  pdf.setTextColor(255, 255, 255)
+  pdf.setFontSize(10)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text('Renaissance Républicaine', 4, 7)
+  pdf.setFontSize(7)
+  pdf.setFont('helvetica', 'normal')
+  pdf.setTextColor(187, 247, 208)
+  pdf.text('Sunu Reew', 4, 12)
 
-  doc.setFontSize(7)
-  doc.setFont('helvetica', 'normal')
-  doc.text('SUNU REEWW', 5, 18)
-
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'bold')
-  doc.text('CARTE DE MEMBRE', w - 5, 10, { align: 'right' })
-
-  const fullName = `${member.firstName} ${member.lastName}`.toUpperCase()
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(255, 255, 255)
-  doc.text(fullName, w / 2, 26, { align: 'center' })
-
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`N° ${member.membershipNumber}`, w / 2, 32, { align: 'center' })
-
-  if (member.phone) {
-    doc.setFontSize(7)
-    doc.text(member.phone, w / 2, 38, { align: 'center' })
+  // Logo en haut AVEC cercle blanc
+  try {
+    const logoBase64 = await loadImageAsBase64('/logo.png')
+    pdf.setFillColor(255, 255, 255)
+    pdf.circle(pageWidth - 12, 9, 9, 'F')
+    pdf.addImage(logoBase64, 'PNG', pageWidth - 21, 0, 18, 18)
+  } catch (e) {
+    pdf.setFillColor(255, 255, 255)
+    pdf.circle(pageWidth - 12, 9, 8, 'F')
+    pdf.setTextColor(0, 135, 81)
+    pdf.setFontSize(15)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('RR', pageWidth - 12, 12, { align: 'center' })
   }
 
-  if (member.email) {
-    doc.setFontSize(6)
-    doc.text(member.email, w / 2, 42, { align: 'center' })
+  // Corps blanc
+  pdf.setFillColor(255, 255, 255)
+  pdf.rect(0, 18, pageWidth, pageHeight - 18, 'F')
+
+  // Photo du membre
+  if (member.photo) {
+    try {
+      const photoBase64 = await loadImageAsBase64(member.photo)
+      pdf.addImage(photoBase64, 'PNG', 4, 21, 18, 22)
+    } catch (e) {
+      pdf.setFillColor(243, 244, 246)
+      pdf.roundedRect(4, 21, 18, 22, 2, 2, 'F')
+    }
+  } else {
+    pdf.setFillColor(243, 244, 246)
+    pdf.roundedRect(4, 21, 18, 22, 2, 2, 'F')
   }
+
+  // Bordure photo
+  pdf.setDrawColor(0, 135, 81)
+  pdf.setLineWidth(0.3)
+  pdf.roundedRect(4, 21, 18, 22, 2, 2, 'S')
+
+  // Nom
+  pdf.setTextColor(156, 163, 175)
+  pdf.setFontSize(5)
+  pdf.text('NOM', 25, 24)
+  pdf.setTextColor(17, 24, 39)
+  pdf.setFontSize(9)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text(`${member.firstName} ${member.lastName}`, 25, 28)
+
+  // N° Membre
+  pdf.setTextColor(156, 163, 175)
+  pdf.setFontSize(5)
+  pdf.setFont('helvetica', 'normal')
+  pdf.text('N° MEMBRE', 25, 33)
+  pdf.setTextColor(0, 135, 81)
+  pdf.setFontSize(8)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text(member.membershipNumber || 'En attente', 25, 37)
+
+  // Téléphone
+  pdf.setTextColor(156, 163, 175)
+  pdf.setFontSize(5)
+  pdf.setFont('helvetica', 'normal')
+  pdf.text('TÉLÉPHONE', 25, 41)
+  pdf.setTextColor(55, 65, 81)
+  pdf.setFontSize(7)
+  pdf.text(member.phone || 'N/A', 25, 44)
+
+  // Ligne séparatrice
+  pdf.line(4, 46, pageWidth - 4, 46)
+
+  // Labels bas
+  pdf.setTextColor(156, 163, 175)
+  pdf.setFontSize(4.5)
+  pdf.setFont('helvetica', 'normal')
+  pdf.text('DÉPARTEMENT', 4, 49)
+  pdf.text('COMMUNE', 26, 49)
+  pdf.text('MEMBRE DEPUIS', 48, 49)
+  pdf.text('EXPIRE LE', 70, 49)
+
+  // Valeurs bas
+  pdf.setTextColor(31, 41, 55)
+  pdf.setFontSize(5.5)
+  pdf.text(member.department?.name || member.cityAbroad || 'N/A', 4, 52)
+  pdf.text(member.commune?.name || member.country || 'N/A', 26, 52)
+  pdf.text(member.membershipDate ? formatDate(member.membershipDate) : 'En attente', 48, 52)
 
   if (member.membershipDate) {
-    const date = new Date(member.membershipDate).toLocaleDateString('fr-FR')
-    doc.setFontSize(6)
-    doc.text(`Adhérent depuis ${date}`, w / 2, h - 6, { align: 'center' })
+    const expiryDate = calculateExpiryDate(member.membershipDate)
+    pdf.text(expiryDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), 70, 52)
+  } else {
+    pdf.text('En attente', 70, 52)
   }
 
-  doc.save(`carte-membre-${member.membershipNumber}.pdf`)
+  pdf.save(`carte-membre-${member.membershipNumber}.pdf`)
 }
