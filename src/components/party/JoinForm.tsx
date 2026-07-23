@@ -653,6 +653,11 @@ export function JoinForm() {
                   <p className="text-xs text-gray-500">Payez 1 000 FCFA pour recevoir votre carte</p>
                 </div>
               </div>
+                {paymentError && (
+                <Alert className="mb-3 bg-red-50 border-red-200">
+                  <AlertDescription className="text-red-600 text-xs">{paymentError}</AlertDescription>
+                </Alert>
+              )}
               <Button 
                 className="w-full bg-[#FFD100] text-black hover:bg-[#e6bc00] min-h-[48px] font-semibold"
                 onClick={handleCardPayment}
