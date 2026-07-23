@@ -395,8 +395,14 @@ export function JoinForm() {
   }
 
   // Handle card payment initiation
+  // Handle card payment initiation
+  const [paymentError, setPaymentError] = useState('')
   const handleCardPayment = async () => {
-    if (!registeredMemberId) return
+    if (!registeredMemberId) {
+      setPaymentError('Erreur interne: identifiant membre manquant')
+      return
+    }
+    setPaymentError('')
     setCardPaymentLoading(true)
     try {
       const res = await fetch('/api/paytech', {
@@ -412,6 +418,34 @@ export function JoinForm() {
         })
       })
       const data = await res.json()
+      console.log('💳 PayTech response:', data)
+      
+      if (data.testMode) {
+        // Test mode: directly mark card as paid and send confirmation email
+        console.log('🔧 MODE TEST - Activation directe de la carte')
+        sessionStorage.setItem('pendingCardMemberId', registeredMemberId)
+        sessionStorage.setItem('pendingCardEmail', formData.email)
+        // Call the card API directly to simulate payment success
+        const cardRes = await fetch('/api/card', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memberId: registeredMemberId, paymentRef: 'TEST-' + Date.now() })
+        })
+        const cardData = await cardRes.json()
+        if (cardData.success) {
+          // Fetch full member info for card generation
+          const infoRes = await fetch(`/api/card?memberId=${registeredMemberId}`)
+          const infoData = await infoRes.json()
+          if (infoData.member) {
+            setCardPaid(true)
+            setCardInfo(infoData.member)
+          }
+        } else {
+          setPaymentError('Erreur lors de l\'activation de la carte')
+        }
+        return
+      }
+      
       if (data.redirectUrl || data.redirect_url) {
         const url = data.redirectUrl || data.redirect_url
         // Store memberId and email in sessionStorage for success page
@@ -421,10 +455,11 @@ export function JoinForm() {
         window.location.href = url
         return
       } else {
-        setError(data.error || 'Erreur lors de l\'initialisation du paiement')
+        setPaymentError(data.error || 'Erreur lors de l\'initialisation du paiement')
       }
-    } catch {
-      setError('Erreur de connexion au serveur')
+    } catch (err) {
+      console.error('💳 Payment error:', err)
+      setPaymentError('Erreur de connexion au serveur')
     } finally {
       setCardPaymentLoading(false)
     }
