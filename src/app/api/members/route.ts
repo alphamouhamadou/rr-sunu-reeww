@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
-import { sendEmail, generateWelcomeEmail, generateRejectionEmail, generateRegistrationConfirmationEmail } from '@/lib/email-service'
+import { sendEmail, generateWelcomeEmail, generateRejectionEmail } from '@/lib/email-service'
 import { logActivity } from '@/lib/activity-logger'
 import crypto from 'crypto'
 
@@ -227,21 +227,9 @@ export async function POST(request: NextRequest) {
       details: JSON.stringify({ membershipNumber, autoApproved: true }),
     }).catch(() => {})
 
-    // Send welcome email with membership number (non-blocking)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const emailData = generateWelcomeEmail({
-      memberName: `${firstName} ${lastName}`,
-      email: email.toLowerCase(),
-      membershipNumber,
-      loginUrl: appUrl
-    })
-
-    sendEmail({
-      to: email.toLowerCase(),
-      subject: emailData.subject,
-      html: emailData.html,
-      text: emailData.text
-    }).catch(err => console.error('Failed to send welcome email:', err))
+    // APRÈS :
+    // NOTE: Welcome email is sent AFTER card payment in the webhook,
+    // not here at registration time.
 
     return NextResponse.json({ 
       message: 'Inscription réussie ! Vous êtes maintenant membre de Renaissance Républicaine Sunu Reew.',
