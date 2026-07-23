@@ -5,6 +5,28 @@ import { sendEmail, generateWelcomeEmail, generateRejectionEmail, generateRegist
 import { logActivity } from '@/lib/activity-logger'
 import crypto from 'crypto'
 
+// Generate next membership number safely by finding the max existing one
+async function generateNextMembershipNumber(): Promise<string> {
+  // Find the member with the highest numeric part of membershipNumber
+  const members = await db.member.findMany({
+    where: { membershipNumber: { not: null, startsWith: 'SN-RR-' } },
+    select: { membershipNumber: true },
+    orderBy: { membershipNumber: 'desc' },
+    take: 1,
+  })
+
+  let nextNum = 1
+  if (members.length > 0 && members[0].membershipNumber) {
+    const parts = members[0].membershipNumber.split('-')
+    const lastNum = parseInt(parts[parts.length - 1], 10)
+    if (!isNaN(lastNum)) {
+      nextNum = lastNum + 1
+    }
+  }
+
+  return `SN-RR-${String(nextNum).padStart(6, '0')}`
+}
+
 // Get all members (admin) or register new member
 export async function GET(request: NextRequest) {
   try {
@@ -79,17 +101,13 @@ export async function POST(request: NextRequest) {
       phone, 
       cniNumber,
       photo,
-      // Type de résidence
       residenceType,
       isDiaspora,
-      // Pour les résidents au Sénégal
       regionId,
       departmentId,
       communeId,
-      // Pour la diaspora
       country,
       cityAbroad,
-      // Carte d'électeur
       hasVoterCard,
       voterCardNumber,
     } = body
@@ -150,39 +168,56 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await hashPassword(autoPassword)
 
     // Auto-approve: generate membership number immediately (no admin approval needed)
-    const count = await db.member.count({ where: { status: 'approved' } })
-    const membershipNumber = `SN-RR-${String(count + 1).padStart(6, '0')}`
+    let membershipNumber = await generateNextMembershipNumber()
 
-    const member = await db.member.create({
-      data: {
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        firstName,
-        lastName,
-        dateOfBirth,
-        placeOfBirth,
-        address,
-        phone,
-        cniNumber,
-        photo: photo || null,
-        residenceType: memberResidenceType,
-        // Champs pour les résidents au Sénégal
-        regionId: memberResidenceType === 'senegal' ? regionId : null,
-        departmentId: memberResidenceType === 'senegal' ? departmentId : null,
-        communeId: memberResidenceType === 'senegal' ? communeId : null,
-        // Champs pour la diaspora
-        country: memberResidenceType === 'diaspora' ? country : null,
-        cityAbroad: memberResidenceType === 'diaspora' ? cityAbroad : null,
-        // Carte d'électeur
-        hasVoterCard: hasVoterCard || false,
-        voterCardNumber: hasVoterCard ? voterCardNumber : null,
-        role: 'member',
-        status: 'approved',
-        emailVerified: true,
-        membershipNumber,
-        membershipDate: new Date(),
+    // Retry with increment if unique constraint fails (race condition safety)
+    let member = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        member = await db.member.create({
+          data: {
+            email: email.toLowerCase(),
+            password: hashedPassword,
+            firstName,
+            lastName,
+            dateOfBirth,
+            placeOfBirth,
+            address,
+            phone,
+            cniNumber,
+            photo: photo || null,
+            residenceType: memberResidenceType,
+            regionId: memberResidenceType === 'senegal' ? regionId : null,
+            departmentId: memberResidenceType === 'senegal' ? departmentId : null,
+            communeId: memberResidenceType === 'senegal' ? communeId : null,
+            country: memberResidenceType === 'diaspora' ? country : null,
+            cityAbroad: memberResidenceType === 'diaspora' ? cityAbroad : null,
+            hasVoterCard: hasVoterCard || false,
+            voterCardNumber: hasVoterCard ? voterCardNumber : null,
+            role: 'member',
+            status: 'approved',
+            emailVerified: true,
+            membershipNumber,
+            membershipDate: new Date(),
+          }
+        })
+        break // Success, exit retry loop
+      } catch (err: unknown) {
+        const prismaErr = err as { code?: string }
+        if (prismaErr.code === 'P2002' && attempt < 2) {
+          // Unique constraint failed, generate next number and retry
+          const parts = membershipNumber.split('-')
+          const num = parseInt(parts[parts.length - 1], 10)
+          membershipNumber = `SN-RR-${String(num + 1).padStart(6, '0')}`
+          continue
+        }
+        throw err
       }
-    })
+    }
+
+    if (!member) {
+      return NextResponse.json({ error: 'Erreur lors de la génération du numéro de membre' }, { status: 500 })
+    }
 
     // Log auto-approval activity
     logActivity({
@@ -246,8 +281,7 @@ export async function PATCH(request: NextRequest) {
       updateData.status = status
       if (status === 'approved') {
         // Generate membership number
-        const count = await db.member.count({ where: { status: 'approved' } })
-        const membershipNumber = `SN-RR-${String(count + 1).padStart(6, '0')}`
+        const membershipNumber = await generateNextMembershipNumber()
         updateData.membershipNumber = membershipNumber
         updateData.membershipDate = new Date()
       }
@@ -264,7 +298,6 @@ export async function PATCH(request: NextRequest) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
       
       if (status === 'approved' && currentMember.status !== 'approved') {
-        // Send welcome email
         const emailData = generateWelcomeEmail({
           memberName: `${member.firstName} ${member.lastName}`,
           email: member.email,
@@ -272,7 +305,6 @@ export async function PATCH(request: NextRequest) {
           loginUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
         })
         
-        // Send email (non-blocking)
         sendEmail({
           to: member.email,
           subject: emailData.subject,
@@ -282,7 +314,6 @@ export async function PATCH(request: NextRequest) {
       }
       
       if (status === 'rejected' && currentMember.status !== 'rejected') {
-        // Send rejection email
         const emailData = generateRejectionEmail({
           memberName: `${member.firstName} ${member.lastName}`,
           email: member.email
@@ -314,7 +345,6 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'ID du membre requis' }, { status: 400 })
     }
 
-    // Check if member exists
     const member = await db.member.findUnique({
       where: { id },
       include: {
@@ -334,7 +364,6 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Membre non trouvé' }, { status: 404 })
     }
 
-    // Prevent deleting the last admin
     if (member.role === 'admin') {
       const adminCount = await db.member.count({ where: { role: 'admin' } })
       if (adminCount <= 1) {
@@ -344,25 +373,15 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Delete related records first (cascade)
     await db.$transaction(async (tx) => {
-      // Delete notifications
       await tx.notification.deleteMany({ where: { memberId: id } })
-      
-      // Delete messages (sent and received)
       await tx.message.deleteMany({ where: { senderId: id } })
       await tx.message.deleteMany({ where: { recipientId: id } })
-      
-      // Delete contributions
       await tx.contribution.deleteMany({ where: { memberId: id } })
-      
-      // Delete donations (set memberId to null for anonymous donations)
       await tx.donation.updateMany({
         where: { memberId: id },
         data: { memberId: null }
       })
-      
-      // Finally delete the member
       await tx.member.delete({ where: { id } })
     })
 
