@@ -289,14 +289,14 @@ export function HeroSection() {
               <div className="relative w-full aspect-[3/4] max-w-md mx-auto rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20">
                 <Image
                   src="/sg-photo.jpg"
-                  alt="Abdoulaye Diouf Sarr - Secrétaire Général"
+                  alt="Abdoulaye Diouf Sarr - Président du parti"
                   fill
                   className="object-cover object-top"
                   priority
                 />
                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent z-20">
                   <p className="text-2xl font-bold">Abdoulaye Diouf Sarr</p>
-                  <p className="text-[#FFD100] font-medium">Secrétaire Général</p>
+                  <p className="text-[#FFD100] font-medium">Président du parti</p>
                 </div>
               </div>
               {/* Decorative elements */}
@@ -326,7 +326,7 @@ export function HeroSection() {
               Le Leadership
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-              Le Secrétaire Général
+              Le Président du parti
             </h2>
           </div>
 
@@ -348,7 +348,7 @@ export function HeroSection() {
                 {/* Name Card */}
                 <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-800 rounded-xl shadow-xl p-4 w-[90%] max-w-xs">
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white text-center">Abdoulaye Diouf Sarr</h3>
-                  <p className="text-[#008751] font-medium text-center">Secrétaire Général</p>
+                  <p className="text-[#008751] font-medium text-center">Président du parti</p>
                 </div>
               </div>
             </div>
